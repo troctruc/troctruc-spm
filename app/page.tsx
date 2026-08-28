@@ -332,7 +332,7 @@ export default function Home() {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
-            {filteredAnnonces.log ? null : filteredAnnonces.map((item) => {
+            {filteredAnnonces.map((item) => {
               let imageUrl = null
               if (item.photos && item.photos.length > 0) {
                 imageUrl = item.photos[0]
