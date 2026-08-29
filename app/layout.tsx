@@ -1,4 +1,5 @@
 import './globals.css'
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata = {
   title: 'Tructroc SPM',
@@ -14,6 +15,7 @@ export default function RootLayout({
     <html lang="fr">
       <body>
         {children}
+        <Analytics />
       </body>
     </html>
   )
