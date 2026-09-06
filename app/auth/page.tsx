@@ -28,7 +28,7 @@ export default function AuthPage() {
       if (error) {
         setErrorMessage("Erreur lors de l'inscription : " + error.message)
       } else {
-        setSuccessMessage("Inscription réussie ! Vérifiez vos e-mails pour confirmer votre compte, ou connectez-vous si la confirmation n'est pas requise.")
+        setSuccessMessage("Merci pour votre inscription. Vous allez recevoir un lien pour confirmer votre email. Cliquez dessus pour pouvoir profiter de TrocTruc. S'il n'apparaît pas, veuillez vérifier vos spams. Merci pour votre inscription et bonnes transactions")
       }
     } else {
       const { error } = await supabase.auth.signInWithPassword({
@@ -68,7 +68,7 @@ export default function AuthPage() {
         )}
 
         {successMessage && (
-          <div style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '10px', borderRadius: '6px', fontSize: '13px', marginBottom: '20px', textAlign: 'left' }}>
+          <div style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '12px', borderRadius: '6px', fontSize: '13px', marginBottom: '20px', textAlign: 'left', lineHeight: '1.4' }}>
             {successMessage}
           </div>
         )}
@@ -107,7 +107,7 @@ export default function AuthPage() {
             disabled={loading}
             style={{ width: '100%', padding: '12px', borderRadius: '6px', border: 'none', backgroundColor: '#3498db', color: 'white', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', marginBottom: '15px' }}
           >
-            {loading ? 'Chargement...' : (isSignUp ? "S'inscrire" : "Se connecter")}
+            {loading ? 'Chargement...' : (isSignUp ? "Confirmer mon inscription" : "Se connecter")}
           </button>
         </form>
 

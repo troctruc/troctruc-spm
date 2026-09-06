@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import CovoiturageNavMenu from '@/components/CovoiturageNavMenu'
 
 export default function Home() {
   const router = useRouter()
@@ -16,7 +17,6 @@ export default function Home() {
   const [selectedLocation, setSelectedLocation] = useState('Tous')
   const [hasNewMessages, setHasNewMessages] = useState(false)
 
-  // MISE À JOUR DE L'ORDRE DES CATÉGORIES ICI
   const categories = ['Tous', 'Maison', 'Loisirs', 'Multimédia', 'Jeu', 'Service', 'Véhicules', 'Immobilier', 'Autre']
   
   const typesOffre = [
@@ -140,7 +140,6 @@ export default function Home() {
                        item.description.toLowerCase().includes(searchQuery.toLowerCase())
     const matchCat = selectedCategory === 'Tous' || item.categorie === selectedCategory
     
-    // Extraction du type d'offre
     let itemTypeOffre = 'vente'
     if (item.description && item.description.includes('Type :')) {
       const typePart = item.description.split('Type :')[1]
@@ -154,7 +153,6 @@ export default function Home() {
     }
     const matchTypeOffre = selectedTypeOffre === 'Tous' || itemTypeOffre === selectedTypeOffre
 
-    // Extraction de la localisation
     let itemLoc = 'Saint-Pierre'
     if (item.description && item.description.includes('Localisation :')) {
       const locPart = item.description.split('Localisation :')[1]
@@ -193,7 +191,18 @@ export default function Home() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* BOUTON DÉROULANT COVOITURAGE */}
+          <CovoiturageNavMenu />
+
+          {/* DÉPOSER UNE ANNONCE */}
+          <button
+            onClick={() => router.push(user ? '/annonces/nouvelle' : '/auth')}
+            style={{ backgroundColor: '#e67e22', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            + Déposer une annonce
+          </button>
+
           {user ? (
             <>
               <button
@@ -217,12 +226,6 @@ export default function Home() {
                 )}
               </button>
 
-              <button
-                onClick={() => router.push('/annonces/nouvelle')}
-                style={{ backgroundColor: '#e67e22', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
-              >
-                + Déposer une annonce
-              </button>
               <button
                 onClick={handleLogout}
                 style={{ background: 'none', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', color: '#c0392b', cursor: 'pointer' }}
@@ -390,7 +393,6 @@ export default function Home() {
                     <div>
                       <h3 style={{ margin: '0 0 8px 0', fontSize: '15px', color: '#2c3e50', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.titre}</h3>
                       
-                      {/* TYPE D'OFFRE ET PRIX CONDITIONNEL */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                         <span style={{ 
                           padding: '2px 8px', 

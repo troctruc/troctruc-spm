@@ -186,13 +186,20 @@ export default function NouvelleAnnonce() {
               <label style={{ fontWeight: '600', fontSize: '14px', color: '#334155' }}>Type d'annonce</label>
               <select
                 value={typeAnnonce}
-                onChange={(e) => setTypeAnnonce(e.target.value)}
+                onChange={(e) => {
+                  if (e.target.value === 'covoiturage') {
+                    router.push('/covoiturage/nouveau')
+                    return
+                  }
+                  setTypeAnnonce(e.target.value)
+                }}
                 style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', backgroundColor: '#fff' }}
               >
                 <option value="vente">Vente</option>
                 <option value="troc">Troc</option>
                 <option value="don">Don</option>
                 <option value="recherche">Recherche</option>
+                <option value="covoiturage">🚗 Proposer un covoiturage</option>
               </select>
             </div>
 
