@@ -226,6 +226,27 @@ export default function Home() {
                 )}
               </button>
 
+              {/* BOUTON MON PROFIL */}
+              <button
+                type="button"
+                onClick={() => router.push('/profil')}
+                style={{
+                  backgroundColor: '#ffffff',
+                  color: '#334155',
+                  border: '1px solid #cbd5e1',
+                  padding: '8px 14px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                👤 Mon Profil
+              </button>
+
               <button
                 onClick={handleLogout}
                 style={{ background: 'none', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', color: '#c0392b', cursor: 'pointer' }}
