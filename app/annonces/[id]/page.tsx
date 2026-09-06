@@ -11,6 +11,7 @@ export default function AnnonceDetailPage() {
   const id = params?.id
 
   const [annonce, setAnnonce] = useState<any>(null)
+  const [authorProfile, setAuthorProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [showChat, setShowChat] = useState(false)
@@ -30,6 +31,21 @@ export default function AnnonceDetailPage() {
 
         if (!error && data) {
           setAnnonce(data)
+
+          // Détecte le champ propriétaire de l'annonce (user_id, author_id, etc.)
+          const sellerId = data.user_id || data.author_id || data.created_by
+
+          if (sellerId) {
+            const { data: pData } = await supabase
+              .from('profiles')
+              .select('id, pseudo, avatar_url, bio')
+              .eq('id', sellerId)
+              .maybeSingle()
+
+            if (pData) {
+              setAuthorProfile(pData)
+            }
+          }
         } else {
           console.error("Erreur chargement annonce:", error)
         }
@@ -62,7 +78,8 @@ export default function AnnonceDetailPage() {
     return <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'sans-serif' }}>Annonce introuvable.</div>
   }
 
-  // 1. Récupération robuste des images (depuis photos, image_url, etc.)
+  const sellerId = annonce.user_id || annonce.author_id || annonce.created_by
+
   let rawImages = annonce.photos || annonce.image_url || annonce.image_urls || annonce.image || annonce.photo || []
   let rawList: string[] = []
 
@@ -72,13 +89,11 @@ export default function AnnonceDetailPage() {
     rawList = rawImages.split(',').map((url: string) => url.trim()).filter(Boolean)
   }
 
-  // 2. Transformation automatique des chemins du bucket "annonces-images" en URLs publiques valides
   const imagesList = rawList.map((item) => {
     if (!item) return ''
     if (item.startsWith('http') || item.startsWith('data:image')) {
-      return item // Déjà une URL complète ou du Base64
+      return item
     }
-    // C'est un chemin stocké dans le bucket 'annonces-images'
     const { data } = supabase.storage.from('annonces-images').getPublicUrl(item)
     return data.publicUrl
   }).filter(Boolean)
@@ -218,6 +233,69 @@ export default function AnnonceDetailPage() {
               </span>
             </div>
 
+            {/* ENCADRÉ PROFIL DE L'AUTEUR */}
+            {authorProfile ? (
+              <div
+                onClick={() => router.push(`/profil/${sellerId}`)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  margin: '15px 0 20px 0'
+                }}
+              >
+                <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#e2e8f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #cbd5e1', flexShrink: 0 }}>
+                  {authorProfile.avatar_url ? (
+                    <img src={authorProfile.avatar_url} alt={authorProfile.pseudo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <span style={{ fontSize: '20px' }}>👤</span>
+                  )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>Annonce publiée par</div>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#1e293b' }}>
+                    {authorProfile.pseudo || 'Membre TrocTruc'}
+                  </div>
+                </div>
+                <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: '600' }}>
+                  Voir le profil →
+                </span>
+              </div>
+            ) : sellerId ? (
+              <div
+                onClick={() => router.push(`/profil/${sellerId}`)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  margin: '15px 0 20px 0'
+                }}
+              >
+                <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #cbd5e1' }}>
+                  <span style={{ fontSize: '20px' }}>👤</span>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>Annonce publiée par</div>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#1e293b' }}>
+                    Membre TrocTruc
+                  </div>
+                </div>
+                <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: '600' }}>
+                  Voir le profil →
+                </span>
+              </div>
+            ) : null}
+
             <hr style={{ border: 'none', borderTop: '1px solid #e1e4e8', margin: '20px 0' }} />
 
             <h3 style={{ fontSize: '16px', color: '#2c3e50', marginBottom: '10px' }}>Description</h3>
@@ -226,7 +304,7 @@ export default function AnnonceDetailPage() {
             </p>
 
             {/* BOUTON CONTACTER LE VENDEUR / CHAT */}
-            {currentUser && currentUser.id !== annonce.user_id ? (
+            {currentUser && currentUser.id !== sellerId ? (
               <div>
                 {!showChat ? (
                   <button
@@ -239,7 +317,7 @@ export default function AnnonceDetailPage() {
                   <div style={{ marginTop: '20px' }}>
                     <ChatModal
                       annonceId={annonce.id}
-                      sellerId={annonce.user_id}
+                      sellerId={sellerId}
                       currentUserId={currentUser.id}
                       onClose={() => setShowChat(false)}
                     />
