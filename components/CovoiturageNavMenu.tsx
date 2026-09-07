@@ -3,11 +3,10 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 
-export default function CovoiturageNavMenu() {
+export default function CovoiturageNavMenu({ fullWidth = false }: { fullWidth?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Ferme le menu déroulant en cas de clic à l'extérieur
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -19,7 +18,14 @@ export default function CovoiturageNavMenu() {
   }, []);
 
   return (
-    <div style={{ position: 'relative', display: 'inline-block' }} ref={dropdownRef}>
+    <div 
+      style={{ 
+        position: 'relative', 
+        display: fullWidth ? 'block' : 'inline-block',
+        width: fullWidth ? '100%' : 'auto'
+      }} 
+      ref={dropdownRef}
+    >
       {/* BOUTON PRINCIPAL ONGLET COVOITURAGE */}
       <button
         type="button"
@@ -27,13 +33,15 @@ export default function CovoiturageNavMenu() {
         style={{
           display: 'flex',
           alignItems: 'center',
+          justifyContent: fullWidth ? 'center' : 'space-between',
           gap: '8px',
+          width: fullWidth ? '100%' : 'auto',
           backgroundColor: '#2563eb',
           color: '#ffffff',
           border: 'none',
-          padding: '8px 15px',
-          borderRadius: '6px',
-          fontSize: '13px',
+          padding: fullWidth ? '10px 14px' : '8px 15px',
+          borderRadius: fullWidth ? '8px' : '6px',
+          fontSize: fullWidth ? '14px' : '13px',
           fontWeight: 'bold',
           cursor: 'pointer',
           boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
@@ -52,10 +60,11 @@ export default function CovoiturageNavMenu() {
       {isOpen && (
         <div
           style={{
-            position: 'absolute',
-            top: 'calc(100% + 6px)',
+            position: fullWidth ? 'static' : 'absolute',
+            marginTop: fullWidth ? '6px' : '0',
+            top: fullWidth ? 'auto' : 'calc(100% + 6px)',
             right: 0,
-            width: '230px',
+            width: fullWidth ? '100%' : '230px',
             backgroundColor: '#ffffff',
             borderRadius: '10px',
             boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',

@@ -277,7 +277,7 @@ export default function Home() {
               + Déposer une annonce
             </button>
 
-            <CovoiturageNavMenu />
+            <CovoiturageNavMenu fullWidth={true} />
 
             {user ? (
               <>
