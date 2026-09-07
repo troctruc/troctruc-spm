@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import CovoiturageNavMenu from '@/components/CovoiturageNavMenu'
+import PushNotificationManager from '@/components/PushNotificationManager'
 
 export default function Home() {
   const router = useRouter()
@@ -19,7 +20,6 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
-  // Liste des catégories avec Covoiturage placé tout à la fin
   const categories = [
     'Tous',
     'Maison',
@@ -335,6 +335,11 @@ export default function Home() {
           </div>
         )}
       </header>
+
+      {/* BANDEAU ACTIVATION NOTIFICATIONS PUSH */}
+      <div style={{ padding: '0 16px' }}>
+        <PushNotificationManager user={user} />
+      </div>
 
       {/* BARRE DE RECHERCHE, CATÉGORIES, TYPE D'OFFRE ET LOCALISATION */}
       <div style={{ maxWidth: '1000px', margin: '20px auto', padding: '16px', backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '15px' }}>
