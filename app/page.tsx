@@ -260,6 +260,9 @@ export default function Home() {
                     )}
                   </button>
 
+                  {/* Cloche Notifications Push */}
+                  <PushNotificationManager user={user} />
+
                   <button
                     type="button"
                     onClick={() => router.push('/profil')}
@@ -310,6 +313,11 @@ export default function Home() {
                   💬 Mes Messages {hasNewMessages && '🔴'}
                 </button>
 
+                {/* Cloche Notifications Push (Mobile) */}
+                <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+                  <PushNotificationManager user={user} />
+                </div>
+
                 <button
                   onClick={() => { setMobileMenuOpen(false); router.push('/profil'); }}
                   style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#ffffff', color: '#334155', border: '1px solid #cbd5e1', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
@@ -335,11 +343,6 @@ export default function Home() {
           </div>
         )}
       </header>
-
-      {/* BANDEAU ACTIVATION NOTIFICATIONS PUSH */}
-      <div style={{ padding: '0 16px' }}>
-        <PushNotificationManager user={user} />
-      </div>
 
       {/* BARRE DE RECHERCHE, CATÉGORIES, TYPE D'OFFRE ET LOCALISATION */}
       <div style={{ maxWidth: '1000px', margin: '20px auto', padding: '16px', backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '15px' }}>
