@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
@@ -16,12 +18,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'userId requis' }, { status: 400 });
     }
 
-    // Client Supabase côté serveur avec la clé service role ou clé anon
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Récupérer les abonnements de cet utilisateur
     const { data: subs, error } = await supabase
       .from('push_subscriptions')
       .select('id, subscription')
@@ -41,7 +41,6 @@ export async function POST(request: Request) {
       try {
         await webpush.sendNotification(row.subscription, payload);
       } catch (err: any) {
-        // Si l'abonnement a expiré ou n'est plus valide, on le nettoie
         if (err.statusCode === 410 || err.statusCode === 404) {
           await supabase.from('push_subscriptions').delete().eq('id', row.id);
         }
