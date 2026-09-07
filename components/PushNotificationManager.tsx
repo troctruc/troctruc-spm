@@ -49,7 +49,6 @@ export default function PushNotificationManager({ user }: { user: any }) {
       const registration = await navigator.serviceWorker.ready;
 
       if (isSubscribed) {
-        // Désactivation
         const sub = await registration.pushManager.getSubscription();
         if (sub) {
           await sub.unsubscribe();
@@ -57,7 +56,6 @@ export default function PushNotificationManager({ user }: { user: any }) {
         }
         setIsSubscribed(false);
       } else {
-        // Activation
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') {
           setLoading(false);
@@ -97,15 +95,14 @@ export default function PushNotificationManager({ user }: { user: any }) {
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
-      {/* Bouton Cloche épuré */}
+      {/* Bouton Cloche SVG élégant */}
       <button
         onClick={() => setShowTooltip(!showTooltip)}
         style={{
           backgroundColor: '#ffffff',
           border: '1px solid #cbd5e1',
           borderRadius: '8px',
-          padding: '8px 12px',
-          fontSize: '16px',
+          padding: '7px 10px',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
@@ -116,11 +113,31 @@ export default function PushNotificationManager({ user }: { user: any }) {
         }}
         title="Gérer les notifications"
       >
-        <span>{isSubscribed ? '🔔' : '🔕'}</span>
-        {!isSubscribed && <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#e67e22' }}>Activer</span>}
+        {/* Icône Cloche SVG moderne */}
+        <svg 
+          width="18" 
+          height="18" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="currentColor" 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+          style={{ color: isSubscribed ? '#2563eb' : '#64748b' }}
+        >
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          {!isSubscribed && <line x1="1" y1="1" x2="23" y2="23" stroke="#ef4444" strokeWidth="2"></line>}
+        </svg>
+
+        {!isSubscribed && (
+          <span style={{ fontSize: '11px', fontWeight: '600', color: '#e67e22', letterSpacing: '-0.2px' }}>
+            Activer
+          </span>
+        )}
       </button>
 
-      {/* Popover discret en surbrillance */}
+      {/* Menu contextuel discret */}
       {showTooltip && (
         <div style={{
           position: 'absolute',
