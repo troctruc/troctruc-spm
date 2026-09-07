@@ -74,7 +74,6 @@ export default function ChatModal({ annonceId, sellerId, currentUserId, conversa
             }
           }
         } else if (activeConvId) {
-          // Si conversationId est fourni directement (ex: page messagerie)
           const { data: currentConv } = await supabase
             .from('conversations')
             .select('buyer_id, seller_id')
@@ -86,7 +85,6 @@ export default function ChatModal({ annonceId, sellerId, currentUserId, conversa
           }
         }
 
-        // Si l'interlocuteur n'est pas encore identifié mais sellerId est renseigné
         if (!interlocutorId && sellerId && sellerId !== currentUserId) {
           interlocutorId = sellerId
         }
@@ -186,6 +184,24 @@ export default function ChatModal({ annonceId, sellerId, currentUserId, conversa
         if (prev.some((msg) => msg.id === data[0].id)) return prev
         return [...prev, data[0]]
       })
+
+      // 👇 DÉCLENCHEMENT DE LA NOTIFICATION PUSH POUR LE DESTINATAIRE
+      if (otherUser?.id) {
+        try {
+          await fetch('/api/send-push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: otherUser.id,
+              title: '💬 Nouveau message sur TrocTruc',
+              body: `${otherUser.pseudo ? 'Un utilisateur' : 'Quelqu’un'} vous a envoyé un message : "${textToSend.substring(0, 40)}..."`,
+              url: '/conversations'
+            })
+          })
+        } catch (pushErr) {
+          console.error("Erreur lors de l'envoi de la notification push :", pushErr)
+        }
+      }
     }
   }
 
