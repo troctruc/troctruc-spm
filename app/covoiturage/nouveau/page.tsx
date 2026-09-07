@@ -10,16 +10,14 @@ export default function NouveauCovoiturage() {
   const [loading, setLoading] = useState(false)
 
   const [typeTrajet, setTypeTrajet] = useState<'conducteur' | 'passager'>('conducteur')
-  const [depart, setDepart] = useState('Saint-Pierre')
-  const [arrivee, setArrivee] = useState('Miquelon')
+  const [depart, setDepart] = useState('')
+  const [arrivee, setArrivee] = useState('')
   const [dateTrajet, setDateTrajet] = useState('')
   const [heureTrajet, setHeureTrajet] = useState('')
   const [places, setPlaces] = useState('1')
   const [prix, setPrix] = useState('0')
   const [contactTel, setContactTel] = useState('')
   const [description, setDescription] = useState('')
-
-  const locations = ['Saint-Pierre', 'Miquelon', 'Langlade']
 
   useEffect(() => {
     async function getUser() {
@@ -40,6 +38,11 @@ export default function NouveauCovoiturage() {
       return
     }
 
+    if (!depart.trim() || !arrivee.trim()) {
+      alert("Veuillez renseigner un lieu de départ et d'arrivée.")
+      return
+    }
+
     if (!dateTrajet) {
       alert("Veuillez indiquer une date pour le trajet.")
       return
@@ -52,8 +55,8 @@ export default function NouveauCovoiturage() {
         user_id: user.id,
         user_email: user.email,
         type: typeTrajet,
-        depart,
-        arrivee,
+        depart: depart.trim(),
+        arrivee: arrivee.trim(),
         date_trajet: dateTrajet,
         heure_trajet: heureTrajet || null,
         places: parseInt(places, 10) || 1,
@@ -136,32 +139,30 @@ export default function NouveauCovoiturage() {
               </div>
             </div>
 
-            {/* Départ & Arrivée */}
+            {/* Départ & Arrivée en champs libres */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontWeight: '600', fontSize: '14px', color: '#334155' }}>Départ</label>
-                <select
+                <label style={{ fontWeight: '600', fontSize: '14px', color: '#334155' }}>Lieu de départ</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Embarcadère, Saint-Pierre, Place du Général de Gaulle..."
                   value={depart}
                   onChange={(e) => setDepart(e.target.value)}
-                  style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', backgroundColor: '#fff' }}
-                >
-                  {locations.map((loc) => (
-                    <option key={loc} value={loc}>{loc}</option>
-                  ))}
-                </select>
+                  required
+                  style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', backgroundColor: '#fff', boxSizing: 'border-box' }}
+                />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontWeight: '600', fontSize: '14px', color: '#334155' }}>Arrivée</label>
-                <select
+                <label style={{ fontWeight: '600', fontSize: '14px', color: '#334155' }}>Lieu d'arrivée</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Miquelon bourg, Langlade, Aéroport..."
                   value={arrivee}
                   onChange={(e) => setArrivee(e.target.value)}
-                  style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', backgroundColor: '#fff' }}
-                >
-                  {locations.map((loc) => (
-                    <option key={loc} value={loc}>{loc}</option>
-                  ))}
-                </select>
+                  required
+                  style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', backgroundColor: '#fff', boxSizing: 'border-box' }}
+                />
               </div>
             </div>
 

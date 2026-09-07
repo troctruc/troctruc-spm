@@ -11,7 +11,8 @@ export default function CovoiturageListingPage() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [filtreType, setFiltreType] = useState<'Tous' | 'offre' | 'demande'>('Tous');
+  const [filtreType, setFiltreType] = useState<'Tous' | 'conducteur' | 'passager'>('Tous');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     init();
@@ -34,14 +35,13 @@ export default function CovoiturageListingPage() {
     const { data, error } = await supabase
       .from('covoiturages')
       .select('*')
-      .order('date_depart', { ascending: true });
+      .order('created_at', { ascending: false });
 
     if (!error && data) {
       setTrajets(data);
     }
   }
 
-  // Action Admin : Valider le covoiturage
   const handleValidate = async (trajetId: string) => {
     const { error } = await supabase
       .from('covoiturages')
@@ -56,7 +56,6 @@ export default function CovoiturageListingPage() {
     }
   };
 
-  // Action Admin : Supprimer le covoiturage
   const handleDeleteAdmin = async (trajetId: string) => {
     if (!confirm("Voulez-vous vraiment supprimer cette annonce de covoiturage ?")) return;
 
@@ -87,11 +86,19 @@ export default function CovoiturageListingPage() {
     router.push(`/conversations?contactId=${trajet.user_id}`);
   };
 
-  // Filtrage selon le type et la visibilité admin
   const filteredTrajets = trajets.filter((t) => {
-    const matchType = filtreType === 'Tous' || t.type === filtreType;
+    const typeNormalise = (t.type === 'offre' || t.type === 'conducteur') ? 'conducteur' : 'passager';
+    const matchType = filtreType === 'Tous' || typeNormalise === filtreType;
     const isVisible = isAdmin || t.status === 'validé';
-    return matchType && isVisible;
+
+    const depart = (t.depart || t.lieu_depart || '').toLowerCase();
+    const arrivee = (t.arrivee || t.lieu_arrivee || '').toLowerCase();
+    const desc = (t.description || '').toLowerCase();
+    const q = searchQuery.toLowerCase().trim();
+
+    const matchQuery = !q || depart.includes(q) || arrivee.includes(q) || desc.includes(q);
+
+    return matchType && isVisible && matchQuery;
   });
 
   return (
@@ -132,7 +139,7 @@ export default function CovoiturageListingPage() {
           </div>
 
           <div style={{ display: 'flex', gap: '8px' }}>
-            {(['Tous', 'offre', 'demande'] as const).map((mode) => (
+            {(['Tous', 'conducteur', 'passager'] as const).map((mode) => (
               <button
                 key={mode}
                 onClick={() => setFiltreType(mode)}
@@ -148,17 +155,38 @@ export default function CovoiturageListingPage() {
                   boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                 }}
               >
-                {mode === 'Tous' ? 'Tous' : mode === 'offre' ? 'Conducteurs' : 'Passagers'}
+                {mode === 'Tous' ? 'Tous' : mode === 'conducteur' ? '🚗 Conducteurs' : '🙋 Passagers'}
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Champ de recherche libre par mot-clé / lieu */}
+        <div style={{ marginBottom: '20px' }}>
+          <input
+            type="text"
+            placeholder="Rechercher par lieu de départ, destination (ex: Langlade, Aéroport, Miquelon...)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: '12px 16px',
+              borderRadius: '10px',
+              border: '1px solid #cbd5e1',
+              fontSize: '14px',
+              outline: 'none',
+              backgroundColor: '#ffffff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+            }}
+          />
         </div>
 
         {loading ? (
           <p style={{ textAlign: 'center', color: '#7f8c8d', padding: '40px' }}>Chargement des trajets...</p>
         ) : filteredTrajets.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '50px 20px', backgroundColor: 'white', borderRadius: '12px', color: '#7f8c8d', border: '1px solid #e1e4e8' }}>
-            <p style={{ margin: '0 0 15px 0', fontSize: '15px' }}>Aucun trajet disponible pour le moment.</p>
+            <p style={{ margin: '0 0 15px 0', fontSize: '15px' }}>Aucun trajet ne correspond à votre recherche.</p>
             <Link
               href="/covoiturage/nouveau"
               style={{ display: 'inline-block', backgroundColor: '#e67e22', color: 'white', textDecoration: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold' }}
@@ -169,19 +197,27 @@ export default function CovoiturageListingPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             {filteredTrajets.map((trajet) => {
-              const dateObj = new Date(trajet.date_depart);
-              const dateStr = dateObj.toLocaleDateString('fr-FR', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short',
-              });
-              const heureStr = dateObj.toLocaleTimeString('fr-FR', {
-                hour: '2-digit',
-                minute: '2-digit',
-              });
+              const rawDate = trajet.date_trajet || trajet.date_depart;
+              let dateStr = 'Date non précisée';
+              if (rawDate) {
+                const dateObj = new Date(rawDate);
+                if (!isNaN(dateObj.getTime())) {
+                  dateStr = dateObj.toLocaleDateString('fr-FR', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                  });
+                } else {
+                  dateStr = rawDate;
+                }
+              }
 
-              const isOffre = trajet.type === 'offre';
+              const heureAffichee = trajet.heure_trajet || (trajet.date_depart && !isNaN(new Date(trajet.date_depart).getTime()) ? new Date(trajet.date_depart).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null);
+
+              const isConducteur = trajet.type === 'offre' || trajet.type === 'conducteur';
               const isEnAttente = trajet.status === 'en attente';
+              const departAffiche = trajet.depart || trajet.lieu_depart || 'Lieu non spécifié';
+              const arriveeAffichee = trajet.arrivee || trajet.lieu_arrivee || 'Destination non spécifiée';
 
               return (
                 <div
@@ -205,11 +241,11 @@ export default function CovoiturageListingPage() {
                           borderRadius: '4px',
                           fontSize: '11px',
                           fontWeight: 'bold',
-                          backgroundColor: isOffre ? '#dbeafe' : '#fef3c7',
-                          color: isOffre ? '#1e40af' : '#92400e',
+                          backgroundColor: isConducteur ? '#dbeafe' : '#fef3c7',
+                          color: isConducteur ? '#1e40af' : '#92400e',
                         }}
                       >
-                        {isOffre ? '🚗 Conducteur' : '🙋 Cherche un trajet'}
+                        {isConducteur ? '🚗 Conducteur' : '🙋 Passager'}
                       </span>
 
                       {isAdmin && isEnAttente && (
@@ -220,18 +256,35 @@ export default function CovoiturageListingPage() {
                     </div>
 
                     <div style={{ fontSize: '13px', color: '#64748b' }}>
-                      🗓️ Départ : <strong style={{ color: '#334155' }}>{dateStr} à {heureStr}</strong>
+                      🗓️ Date : <strong style={{ color: '#334155' }}>{dateStr} {heureAffichee ? `à ${heureAffichee}` : ''}</strong>
                     </div>
                   </div>
 
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#2c3e50' }}>
-                    {trajet.lieu_depart} ➔ {trajet.lieu_arrivee}
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span>📍 {departAffiche}</span>
+                    <span style={{ color: '#94a3b8' }}>➔</span>
+                    <span>🏁 {arriveeAffichee}</span>
                   </div>
 
-                  {/* BOUTONS D'ACTION (Message + Outils Admin) */}
+                  {/* Infos complémentaires : Places, Prix, Téléphone */}
+                  <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', fontSize: '13px', color: '#475569' }}>
+                    {trajet.places && (
+                      <span>💺 <strong>{trajet.places}</strong> {trajet.places > 1 ? 'places' : 'place'}</span>
+                    )}
+                    <span>💶 <strong>{trajet.prix && trajet.prix > 0 ? `${trajet.prix} €` : 'Gratuit'}</strong></span>
+                    {trajet.contact_tel && (
+                      <span>📞 {trajet.contact_tel}</span>
+                    )}
+                  </div>
+
+                  {trajet.description && (
+                    <p style={{ margin: 0, fontSize: '13px', color: '#64748b', fontStyle: 'italic', backgroundColor: '#f8fafc', padding: '8px 12px', borderRadius: '6px' }}>
+                      « {trajet.description} »
+                    </p>
+                  )}
+
+                  {/* Boutons d'action */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '10px', marginTop: '4px', flexWrap: 'wrap', gap: '8px' }}>
-                    
-                    {/* Zone Admin */}
                     {isAdmin ? (
                       <div style={{ display: 'flex', gap: '8px' }}>
                         {isEnAttente && (
@@ -251,7 +304,6 @@ export default function CovoiturageListingPage() {
                       </div>
                     ) : <div />}
 
-                    {/* Bouton Message */}
                     <button
                       onClick={() => handleContacter(trajet)}
                       style={{
