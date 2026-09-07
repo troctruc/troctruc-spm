@@ -9,6 +9,9 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://troctruc-spm.com'),
+  alternates: {
+    canonical: '/',
+  },
   title: {
     default: 'TrocTruc SPM - Petites annonces et covoiturage à Saint-Pierre-et-Miquelon',
     template: '%s | TrocTruc SPM',
