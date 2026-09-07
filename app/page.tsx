@@ -260,7 +260,6 @@ export default function Home() {
                     )}
                   </button>
 
-                  {/* Cloche Notifications Push */}
                   <PushNotificationManager user={user} />
 
                   <button
@@ -313,7 +312,6 @@ export default function Home() {
                   💬 Mes Messages {hasNewMessages && '🔴'}
                 </button>
 
-                {/* Cloche Notifications Push (Mobile) */}
                 <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
                   <PushNotificationManager user={user} />
                 </div>
