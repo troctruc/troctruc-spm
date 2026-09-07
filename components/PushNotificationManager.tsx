@@ -18,7 +18,7 @@ export default function PushNotificationManager({ user }: { user: any }) {
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [statusMsg, setStatusMsg] = useState('');
+  const [showTooltip, setShowTooltip] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
@@ -36,103 +36,129 @@ export default function PushNotificationManager({ user }: { user: any }) {
       if (sub) {
         setIsSubscribed(true);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Erreur vérification SW:', err);
-      setStatusMsg('Erreur SW: ' + err.message);
     }
   }
 
-  async function subscribeToPush() {
-    if (!user) {
-      alert('Veuillez vous connecter pour activer les alertes.');
-      return;
-    }
-
+  async function toggleSubscription() {
+    if (!user) return;
     setLoading(true);
-    setStatusMsg('');
 
     try {
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        alert('Permission refusée par le navigateur.');
-        setLoading(false);
-        return;
-      }
-
       const registration = await navigator.serviceWorker.ready;
-      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
-      if (!vapidKey) {
-        alert('Erreur: Variable NEXT_PUBLIC_VAPID_PUBLIC_KEY absente.');
-        setLoading(false);
-        return;
-      }
-
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey)
-      });
-
-      const { error } = await supabase.from('push_subscriptions').insert([
-        {
-          user_id: user.id,
-          subscription: subscription.toJSON()
+      if (isSubscribed) {
+        // Désactivation
+        const sub = await registration.pushManager.getSubscription();
+        if (sub) {
+          await sub.unsubscribe();
+          await supabase.from('push_subscriptions').delete().eq('user_id', user.id);
         }
-      ]);
-
-      if (error) {
-        alert("Erreur Supabase : " + error.message);
+        setIsSubscribed(false);
       } else {
-        setIsSubscribed(true);
-        alert('🔔 Notifications activées avec succès !');
+        // Activation
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          setLoading(false);
+          return;
+        }
+
+        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!vapidKey) {
+          setLoading(false);
+          return;
+        }
+
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey)
+        });
+
+        const { error } = await supabase.from('push_subscriptions').insert([
+          {
+            user_id: user.id,
+            subscription: subscription.toJSON()
+          }
+        ]);
+
+        if (!error) {
+          setIsSubscribed(true);
+        }
       }
     } catch (err: any) {
-      console.error('Erreur activation push:', err);
-      alert('Erreur: ' + err.message);
+      console.error('Erreur toggle push:', err);
     }
     setLoading(false);
+    setShowTooltip(false);
   }
 
-  return (
-    <div style={{
-      backgroundColor: '#eff6ff',
-      border: '1px solid #bfdbfe',
-      borderRadius: '8px',
-      padding: '10px 14px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: '12px',
-      margin: '15px auto',
-      maxWidth: '1000px',
-      boxSizing: 'border-box'
-    }}>
-      <div style={{ fontSize: '13px', color: '#1e40af' }}>
-        🔔 <strong>Notifications :</strong> {isSubscribed ? 'Alertes déjà activées sur cet appareil ✓' : 'Recevez une alerte dès qu’on vous répond.'}
-        {statusMsg && <span style={{ color: '#dc2626', marginLeft: '8px' }}>({statusMsg})</span>}
-      </div>
+  if (isSupported === false || !user) return null;
 
-      {!isSubscribed ? (
-        <button
-          onClick={subscribeToPush}
-          disabled={loading || isSupported === false}
-          style={{
-            backgroundColor: '#2563eb',
-            color: 'white',
-            border: 'none',
-            padding: '7px 14px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            opacity: loading ? 0.7 : 1
-          }}
-        >
-          {loading ? 'Activation...' : 'Activer'}
-        </button>
-      ) : (
-        <span style={{ fontSize: '12px', color: '#166534', fontWeight: 'bold' }}>Activé</span>
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      {/* Bouton Cloche épuré */}
+      <button
+        onClick={() => setShowTooltip(!showTooltip)}
+        style={{
+          backgroundColor: '#ffffff',
+          border: '1px solid #cbd5e1',
+          borderRadius: '8px',
+          padding: '8px 12px',
+          fontSize: '16px',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          color: '#334155',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+          transition: 'all 0.2s'
+        }}
+        title="Gérer les notifications"
+      >
+        <span>{isSubscribed ? '🔔' : '🔕'}</span>
+        {!isSubscribed && <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#e67e22' }}>Activer</span>}
+      </button>
+
+      {/* Popover discret en surbrillance */}
+      {showTooltip && (
+        <div style={{
+          position: 'absolute',
+          top: '45px',
+          right: '0',
+          width: '240px',
+          backgroundColor: 'white',
+          border: '1px solid #e2e8f0',
+          borderRadius: '10px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          padding: '12px',
+          zIndex: 100,
+          boxSizing: 'border-box'
+        }}>
+          <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#1e293b', lineHeight: '1.4' }}>
+            {isSubscribed 
+              ? 'Notifications activées sur cet appareil.' 
+              : 'Recevez une alerte dès qu’on vous répond.'}
+          </p>
+
+          <button
+            onClick={toggleSubscription}
+            disabled={loading}
+            style={{
+              width: '100%',
+              backgroundColor: isSubscribed ? '#ef4444' : '#2563eb',
+              color: 'white',
+              border: 'none',
+              padding: '7px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          >
+            {loading ? 'Patientez...' : isSubscribed ? 'Désactiver' : 'Activer'}
+          </button>
+        </div>
       )}
     </div>
   );
