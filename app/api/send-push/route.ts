@@ -4,14 +4,18 @@ import { NextResponse } from 'next/server';
 import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
 
-const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY!;
-const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:contact.troctruc@gmail.com';
-
-webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
-
 export async function POST(request: Request) {
   try {
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+    const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:contact.troctruc@gmail.com';
+
+    if (!vapidPublicKey || !vapidPrivateKey) {
+      return NextResponse.json({ error: 'Clés VAPID manquantes sur le serveur' }, { status: 500 });
+    }
+
+    webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+
     const { userId, title, body, url } = await request.json();
 
     if (!userId) {
