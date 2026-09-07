@@ -19,10 +19,9 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
-  // Ajout de "🚗 Covoiturage" dans la liste des catégories
+  // Liste des catégories avec Covoiturage placé tout à la fin
   const categories = [
     'Tous',
-    '🚗 Covoiturage',
     'Maison',
     'Loisirs',
     'Multimédia',
@@ -30,7 +29,8 @@ export default function Home() {
     'Service',
     'Véhicules',
     'Immobilier',
-    'Autre'
+    'Autre',
+    '🚗 Covoiturage'
   ]
   
   const typesOffre = [
@@ -157,7 +157,6 @@ export default function Home() {
     router.refresh()
   }
 
-  // Gestion du changement de catégorie avec redirection vers /covoiturage
   function handleCategoryChange(cat: string) {
     if (cat === '🚗 Covoiturage') {
       router.push('/covoiturage')
