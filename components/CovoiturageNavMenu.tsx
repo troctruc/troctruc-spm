@@ -22,7 +22,8 @@ export default function CovoiturageNavMenu({ fullWidth = false }: { fullWidth?: 
       style={{ 
         position: 'relative', 
         display: fullWidth ? 'block' : 'inline-block',
-        width: fullWidth ? '100%' : 'auto'
+        width: fullWidth ? '100%' : 'auto',
+        boxSizing: 'border-box'
       }} 
       ref={dropdownRef}
     >
@@ -36,6 +37,7 @@ export default function CovoiturageNavMenu({ fullWidth = false }: { fullWidth?: 
           justifyContent: fullWidth ? 'center' : 'space-between',
           gap: '8px',
           width: fullWidth ? '100%' : 'auto',
+          boxSizing: 'border-box',
           backgroundColor: '#2563eb',
           color: '#ffffff',
           border: 'none',
@@ -65,6 +67,7 @@ export default function CovoiturageNavMenu({ fullWidth = false }: { fullWidth?: 
             top: fullWidth ? 'auto' : 'calc(100% + 6px)',
             right: 0,
             width: fullWidth ? '100%' : '230px',
+            boxSizing: 'border-box',
             backgroundColor: '#ffffff',
             borderRadius: '10px',
             boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',

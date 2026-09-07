@@ -269,35 +269,37 @@ export default function Home() {
 
         {/* Menu Déroulant Mobile */}
         {isMobile && mobileMenuOpen && (
-          <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
             <button
               onClick={() => { setMobileMenuOpen(false); router.push(user ? '/annonces/nouvelle' : '/auth'); }}
-              style={{ width: '100%', backgroundColor: '#e67e22', color: 'white', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#e67e22', color: 'white', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}
             >
               + Déposer une annonce
             </button>
 
-            <CovoiturageNavMenu fullWidth={true} />
+            <div style={{ width: '100%', boxSizing: 'border-box' }}>
+              <CovoiturageNavMenu fullWidth={true} />
+            </div>
 
             {user ? (
               <>
                 <button
                   onClick={() => { setMobileMenuOpen(false); router.push('/conversations'); }}
-                  style={{ width: '100%', backgroundColor: '#2ecc71', color: 'white', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}
+                  style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#2ecc71', color: 'white', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}
                 >
                   💬 Mes Messages {hasNewMessages && '🔴'}
                 </button>
 
                 <button
                   onClick={() => { setMobileMenuOpen(false); router.push('/profil'); }}
-                  style={{ width: '100%', backgroundColor: '#ffffff', color: '#334155', border: '1px solid #cbd5e1', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
+                  style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#ffffff', color: '#334155', border: '1px solid #cbd5e1', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
                 >
                   👤 Mon Profil
                 </button>
 
                 <button
                   onClick={handleLogout}
-                  style={{ width: '100%', background: '#fff', border: '1px solid #fca5a5', color: '#dc2626', padding: '8px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
+                  style={{ width: '100%', boxSizing: 'border-box', background: '#fff', border: '1px solid #fca5a5', color: '#dc2626', padding: '8px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
                 >
                   Déconnexion
                 </button>
@@ -305,7 +307,7 @@ export default function Home() {
             ) : (
               <button
                 onClick={() => { setMobileMenuOpen(false); router.push('/auth'); }}
-                style={{ width: '100%', backgroundColor: '#3498db', color: 'white', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}
+                style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#3498db', color: 'white', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}
               >
                 Se connecter / S'inscrire
               </button>
