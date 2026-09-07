@@ -164,3 +164,361 @@ export default function Home() {
     const matchTypeOffre = selectedTypeOffre === 'Tous' || itemTypeOffre === selectedTypeOffre
 
     let itemLoc = 'Saint-Pierre'
+    if (item.description && item.description.includes('Localisation :')) {
+      const locPart = item.description.split('Localisation :')[1]
+      if (locPart) {
+        itemLoc = locPart.split('\n')[0].split('|')[0].trim()
+      }
+    }
+    const matchLoc = selectedLocation === 'Tous' || itemLoc === selectedLocation
+
+    const isVisibleForUser = isAdmin || item.status !== 'en attente'
+
+    return matchQuery && matchCat && matchTypeOffre && matchLoc && isVisibleForUser
+  })
+
+  return (
+    <div style={{ minHeight: '100vh', backgroundColor: '#f4f6f8', paddingBottom: '60px' }}>
+      
+      {/* HEADER */}
+      <header style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e1e4e8', padding: '12px 20px', position: 'relative' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* Logo */}
+          <div 
+            style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+            onClick={() => { router.push('/'); setMobileMenuOpen(false); }}
+          >
+            <img 
+              src="/puffin-logo.jpeg" 
+              alt="Logo TrocTruc SPM" 
+              style={{ width: '40px', height: '40px', objectFit: 'contain' }} 
+            />
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <h1 style={{ margin: 0, fontSize: '17px', color: '#2c3e50', fontWeight: 'bold' }}>TrocTruc SPM</h1>
+                {isAdmin && (
+                  <span style={{ backgroundColor: '#e74c3c', color: 'white', padding: '2px 5px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' }}>
+                    Admin
+                  </span>
+                )}
+              </div>
+              {!isMobile && (
+                <p style={{ margin: 0, fontSize: '11px', color: '#7f8c8d' }}>site d'échange, de vente et de partage de SPM</p>
+              )}
+            </div>
+          </div>
+
+          {/* Bouton Burger si Mobile */}
+          {isMobile ? (
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              style={{ background: 'none', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '6px 12px', fontSize: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              {mobileMenuOpen ? '✕' : '☰'}
+            </button>
+          ) : (
+            /* Menu Ordinateur */
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <CovoiturageNavMenu />
+
+              <button
+                onClick={() => router.push(user ? '/annonces/nouvelle' : '/auth')}
+                style={{ backgroundColor: '#e67e22', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                + Déposer une annonce
+              </button>
+
+              {user ? (
+                <>
+                  <button
+                    onClick={() => router.push('/conversations')}
+                    style={{ backgroundColor: '#2ecc71', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', position: 'relative' }}
+                  >
+                    💬 Mes Messages
+                    {hasNewMessages && (
+                      <span style={{ position: 'absolute', top: '-4px', right: '-4px', width: '10px', height: '10px', backgroundColor: '#e74c3c', borderRadius: '50%', border: '2px solid white' }} />
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => router.push('/profil')}
+                    style={{ backgroundColor: '#ffffff', color: '#334155', border: '1px solid #cbd5e1', padding: '8px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
+                  >
+                    👤 Mon Profil
+                  </button>
+
+                  <button
+                    onClick={handleLogout}
+                    style={{ background: 'none', border: '1px solid #cbd5e1', padding: '6px 10px', borderRadius: '6px', fontSize: '13px', color: '#c0392b', cursor: 'pointer' }}
+                  >
+                    Déconnexion
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => router.push('/auth')}
+                  style={{ backgroundColor: '#3498db', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  Se connecter / S'inscrire
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Menu Déroulant Mobile */}
+        {isMobile && mobileMenuOpen && (
+          <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <button
+              onClick={() => { setMobileMenuOpen(false); router.push(user ? '/annonces/nouvelle' : '/auth'); }}
+              style={{ width: '100%', backgroundColor: '#e67e22', color: 'white', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              + Déposer une annonce
+            </button>
+
+            <CovoiturageNavMenu />
+
+            {user ? (
+              <>
+                <button
+                  onClick={() => { setMobileMenuOpen(false); router.push('/conversations'); }}
+                  style={{ width: '100%', backgroundColor: '#2ecc71', color: 'white', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  💬 Mes Messages {hasNewMessages && '🔴'}
+                </button>
+
+                <button
+                  onClick={() => { setMobileMenuOpen(false); router.push('/profil'); }}
+                  style={{ width: '100%', backgroundColor: '#ffffff', color: '#334155', border: '1px solid #cbd5e1', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
+                >
+                  👤 Mon Profil
+                </button>
+
+                <button
+                  onClick={handleLogout}
+                  style={{ width: '100%', background: '#fff', border: '1px solid #fca5a5', color: '#dc2626', padding: '8px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
+                >
+                  Déconnexion
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => { setMobileMenuOpen(false); router.push('/auth'); }}
+                style={{ width: '100%', backgroundColor: '#3498db', color: 'white', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                Se connecter / S'inscrire
+              </button>
+            )}
+          </div>
+        )}
+      </header>
+
+      {/* BARRE DE RECHERCHE, CATÉGORIES, TYPE D'OFFRE ET LOCALISATION */}
+      <div style={{ maxWidth: '1000px', margin: '20px auto', padding: '16px', backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        
+        {/* Ligne 1 : Recherche + Catégorie */}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            placeholder="Que recherchez-vous ?"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px', minWidth: '220px' }}
+          />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: isMobile ? '100%' : 'auto' }}>
+            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#475569', whiteSpace: 'nowrap' }}>Catégorie :</label>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px', backgroundColor: '#ffffff', color: '#2c3e50', cursor: 'pointer', fontWeight: '500' }}
+            >
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat === 'Tous' ? 'Toutes les catégories' : cat}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Ligne 2 : Filtres Type d'Offre */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#475569', marginRight: '5px' }}>🏷️ Type :</span>
+          {typesOffre.map((type) => (
+            <button
+              key={type.value}
+              onClick={() => setSelectedTypeOffre(type.value)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '20px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                backgroundColor: selectedTypeOffre === type.value ? '#27ae60' : '#f1f5f9',
+                color: selectedTypeOffre === type.value ? '#ffffff' : '#64748b',
+                transition: 'all 0.2s'
+              }}
+            >
+              {type.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Ligne 3 : Filtres Localisation */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#475569', marginRight: '5px' }}>📍 Lieu :</span>
+          {locations.map((loc) => (
+            <button
+              key={loc.value}
+              onClick={() => setSelectedLocation(loc.value)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '20px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                backgroundColor: selectedLocation === loc.value ? '#2c3e50' : '#f1f5f9',
+                color: selectedLocation === loc.value ? '#ffffff' : '#64748b',
+                transition: 'all 0.2s'
+              }}
+            >
+              {loc.label}
+            </button>
+          ))}
+        </div>
+
+      </div>
+
+      {/* LISTE DES ANNONCES */}
+      <main style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 16px' }}>
+        <h2 style={{ fontSize: '20px', color: '#2c3e50', marginBottom: '20px' }}>Annonces à Saint-Pierre-et-Miquelon</h2>
+
+        {loading ? (
+          <p style={{ textAlign: 'center', color: '#7f8c8d', padding: '40px' }}>Chargement des annonces...</p>
+        ) : filteredAnnonces.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '50px', backgroundColor: 'white', borderRadius: '12px', color: '#7f8c8d' }}>
+            Aucune annonce trouvée pour le moment.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
+            {filteredAnnonces.map((item) => {
+              let imageUrl = null
+              if (item.photos && item.photos.length > 0) {
+                imageUrl = item.photos[0]
+              } else if (item.image_url) {
+                imageUrl = item.image_url.includes(',') ? item.image_url.split(',')[0] : item.image_url
+              } else if (item.image_urls) {
+                imageUrl = item.image_urls.includes(',') ? item.image_urls.split(',')[0] : item.image_urls
+              }
+
+              let cardLocation = 'Saint-Pierre'
+              if (item.description && item.description.includes('Localisation :')) {
+                const locPart = item.description.split('Localisation :')[1]
+                if (locPart) {
+                  cardLocation = locPart.split('\n')[0].split('|')[0].trim()
+                }
+              }
+
+              let cardType = 'vente'
+              if (item.description && item.description.includes('Type :')) {
+                const typePart = item.description.split('Type :')[1]
+                if (typePart) {
+                  cardType = typePart.split('|')[0].trim().toLowerCase()
+                }
+              }
+
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => router.push(`/annonces/${item.id}`)}
+                  style={{ backgroundColor: 'white', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', cursor: 'pointer', display: 'flex', flexDirection: 'column', transition: 'transform 0.2s', position: 'relative' }}
+                >
+                  <div style={{ height: '160px', backgroundColor: '#e2e8f0', position: 'relative' }}>
+                    {imageUrl ? (
+                      <img src={imageUrl} alt={item.titre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#95a5a6', fontSize: '13px' }}>Aucune photo</div>
+                    )}
+                    
+                    <span style={{ position: 'absolute', top: '10px', left: '10px', backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>
+                      {item.categorie}
+                    </span>
+
+                    <span style={{ position: 'absolute', bottom: '10px', left: '10px', backgroundColor: 'rgba(30, 41, 59, 0.85)', color: 'white', padding: '2px 7px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' }}>
+                      📍 {cardLocation}
+                    </span>
+
+                    {isAdmin && item.status === 'en attente' && (
+                      <span style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: '#e67e22', color: 'white', padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' }}>
+                        En attente
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ padding: '15px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1 }}>
+                    <div>
+                      <h3 style={{ margin: '0 0 8px 0', fontSize: '15px', color: '#2c3e50', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.titre}</h3>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ 
+                          padding: '2px 8px', 
+                          borderRadius: '4px', 
+                          backgroundColor: cardType === 'don' ? '#dcfce7' : cardType === 'troc' ? '#fef9c3' : cardType === 'recherche' ? '#f3e8ff' : '#e0f2fe',
+                          color: cardType === 'don' ? '#166534' : cardType === 'troc' ? '#854d0e' : cardType === 'recherche' ? '#6b21a8' : '#0369a1',
+                          fontSize: '11px', 
+                          fontWeight: 'bold',
+                          textTransform: 'uppercase' 
+                        }}>
+                          {cardType}
+                        </span>
+
+                        {(cardType === 'vente') && (
+                          <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#27ae60', margin: 0 }}>
+                            {item.prix} €
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#7f8c8d', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.description}</p>
+
+                    {isAdmin && (
+                      <div style={{ display: 'flex', gap: '6px', marginTop: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
+                        {item.status === 'en attente' && (
+                          <button
+                            onClick={(e) => handleValidate(e, item.id)}
+                            style={{ flex: 1, backgroundColor: '#2ecc71', color: 'white', border: 'none', padding: '6px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                          >
+                            Valider
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => handleDeleteAdmin(e, item.id)}
+                          style={{ flex: 1, backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '6px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </main>
+
+      {/* FOOTER */}
+      <footer style={{ textAlign: 'center', marginTop: '60px', padding: '20px', borderTop: '1px solid #e1e4e8', color: '#7f8c8d', fontSize: '13px' }}>
+        <p style={{ margin: '0 0 5px 0' }}>TrocTruc SPM — Plateforme de petites annonces locales</p>
+        <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#95a5a6' }}>Contact : contact.troctruc@gmail.com</p>
+        <a href="/mentions-legales" style={{ color: '#3498db', textDecoration: 'none' }}>Mentions Légales & CGU</a>
+      </footer>
+
+    </div>
+  )
+}
