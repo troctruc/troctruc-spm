@@ -15,26 +15,30 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 export default function PushNotificationManager({ user }: { user: any }) {
-  const [isSupported, setIsSupported] = useState(false);
+  const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
 
   useEffect(() => {
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
       setIsSupported(true);
-      registerServiceWorker();
+      checkSubscription();
+    } else {
+      setIsSupported(false);
     }
   }, [user]);
 
-  async function registerServiceWorker() {
+  async function checkSubscription() {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js');
       const sub = await registration.pushManager.getSubscription();
       if (sub) {
         setIsSubscribed(true);
       }
-    } catch (err) {
-      console.error('SW register error:', err);
+    } catch (err: any) {
+      console.error('Erreur vérification SW:', err);
+      setStatusMsg('Erreur SW: ' + err.message);
     }
   }
 
@@ -45,12 +49,21 @@ export default function PushNotificationManager({ user }: { user: any }) {
     }
 
     setLoading(true);
+    setStatusMsg('');
+
     try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        alert('Permission refusée par le navigateur.');
+        setLoading(false);
+        return;
+      }
+
       const registration = await navigator.serviceWorker.ready;
       const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
       if (!vapidKey) {
-        alert('Clé VAPID manquante.');
+        alert('Erreur: Variable NEXT_PUBLIC_VAPID_PUBLIC_KEY absente.');
         setLoading(false);
         return;
       }
@@ -60,7 +73,6 @@ export default function PushNotificationManager({ user }: { user: any }) {
         applicationServerKey: urlBase64ToUint8Array(vapidKey)
       });
 
-      // Sauvegarder dans Supabase
       const { error } = await supabase.from('push_subscriptions').insert([
         {
           user_id: user.id,
@@ -69,21 +81,16 @@ export default function PushNotificationManager({ user }: { user: any }) {
       ]);
 
       if (error) {
-        console.error(error);
-        alert("Erreur lors de l'enregistrement : " + error.message);
+        alert("Erreur Supabase : " + error.message);
       } else {
         setIsSubscribed(true);
         alert('🔔 Notifications activées avec succès !');
       }
     } catch (err: any) {
-      console.error('Erreur inscription push:', err);
-      alert('Impossible d’activer les notifications : ' + err.message);
+      console.error('Erreur activation push:', err);
+      alert('Erreur: ' + err.message);
     }
     setLoading(false);
-  }
-
-  if (!isSupported || !user || isSubscribed) {
-    return null; // Ne s'affiche pas si non supporté ou déjà activé
   }
 
   return (
@@ -96,29 +103,37 @@ export default function PushNotificationManager({ user }: { user: any }) {
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: '12px',
-      margin: '10px auto',
-      maxWidth: '1000px'
+      margin: '15px auto',
+      maxWidth: '1000px',
+      boxSizing: 'border-box'
     }}>
       <div style={{ fontSize: '13px', color: '#1e40af' }}>
-        🔔 <strong>Restez prévenu :</strong> activez les alertes pour recevoir un message dès qu'on vous répond !
+        🔔 <strong>Notifications :</strong> {isSubscribed ? 'Alertes déjà activées sur cet appareil ✓' : 'Recevez une alerte dès qu’on vous répond.'}
+        {statusMsg && <span style={{ color: '#dc2626', marginLeft: '8px' }}>({statusMsg})</span>}
       </div>
-      <button
-        onClick={subscribeToPush}
-        disabled={loading}
-        style={{
-          backgroundColor: '#2563eb',
-          color: 'white',
-          border: 'none',
-          padding: '6px 12px',
-          borderRadius: '6px',
-          fontSize: '12px',
-          fontWeight: 'bold',
-          cursor: 'pointer',
-          whiteSpace: 'nowrap'
-        }}
-      >
-        {loading ? 'Activation...' : 'Activer'}
-      </button>
+
+      {!isSubscribed ? (
+        <button
+          onClick={subscribeToPush}
+          disabled={loading || isSupported === false}
+          style={{
+            backgroundColor: '#2563eb',
+            color: 'white',
+            border: 'none',
+            padding: '7px 14px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            opacity: loading ? 0.7 : 1
+          }}
+        >
+          {loading ? 'Activation...' : 'Activer'}
+        </button>
+      ) : (
+        <span style={{ fontSize: '12px', color: '#166534', fontWeight: 'bold' }}>Activé</span>
+      )}
     </div>
   );
 }
