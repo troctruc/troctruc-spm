@@ -19,7 +19,19 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
-  const categories = ['Tous', 'Maison', 'Loisirs', 'Multimédia', 'Jeu', 'Service', 'Véhicules', 'Immobilier', 'Autre']
+  // Ajout de "🚗 Covoiturage" dans la liste des catégories
+  const categories = [
+    'Tous',
+    '🚗 Covoiturage',
+    'Maison',
+    'Loisirs',
+    'Multimédia',
+    'Jeu',
+    'Service',
+    'Véhicules',
+    'Immobilier',
+    'Autre'
+  ]
   
   const typesOffre = [
     { label: 'Tous', value: 'Tous' },
@@ -143,6 +155,15 @@ export default function Home() {
     setHasNewMessages(false)
     setMobileMenuOpen(false)
     router.refresh()
+  }
+
+  // Gestion du changement de catégorie avec redirection vers /covoiturage
+  function handleCategoryChange(cat: string) {
+    if (cat === '🚗 Covoiturage') {
+      router.push('/covoiturage')
+      return
+    }
+    setSelectedCategory(cat)
   }
 
   const filteredAnnonces = annonces.filter((item) => {
@@ -333,7 +354,7 @@ export default function Home() {
             <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#475569', whiteSpace: 'nowrap' }}>Catégorie :</label>
             <select
               value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
+              onChange={(e) => handleCategoryChange(e.target.value)}
               style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px', backgroundColor: '#ffffff', color: '#2c3e50', cursor: 'pointer', fontWeight: '500' }}
             >
               {categories.map((cat) => (
