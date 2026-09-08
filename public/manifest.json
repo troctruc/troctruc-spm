@@ -1,0 +1,21 @@
+{
+  "name": "TrocTruc SPM",
+  "short_name": "TrocTruc",
+  "description": "Site d'échange, de vente et de partage de SPM",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/puffin-logo.jpeg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/puffin-logo.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

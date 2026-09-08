@@ -1,6 +1,7 @@
 import './globals.css'
 import { Analytics } from '@vercel/analytics/react'
 import type { Metadata, Viewport } from 'next'
+import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -31,6 +32,7 @@ export const metadata: Metadata = {
     icon: '/favicon.ico',
     apple: '/favicon.ico',
   },
+  manifest: '/manifest.json',
   openGraph: {
     title: 'TrocTruc SPM - Petites annonces & covoiturage local',
     description:
@@ -55,6 +57,7 @@ export default function RootLayout({
     <html lang="fr">
       <body>
         {children}
+        <ServiceWorkerRegister />
         <Analytics />
       </body>
     </html>
