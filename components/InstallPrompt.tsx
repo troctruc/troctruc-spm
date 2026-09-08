@@ -7,16 +7,14 @@ export default function InstallPrompt() {
   const [showButton, setShowButton] = useState(false)
 
   useEffect(() => {
-    // 1. Vérifie si l'application est déjà lancée en mode PWA installée (standalone)
+    // Vérifie si l'app est déjà en mode autonome
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone
-    if (isStandalone) {
-      setShowButton(false)
-      return
-    }
+    if (isStandalone) return
 
-    // 2. Écoute l'événement d'installation du navigateur
-    const handleBeforeInstallPrompt = (e: Event) => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      // Empêche Chrome d'afficher sa bannière par défaut
       e.preventDefault()
+      // Stocke l'événement
       setDeferredPrompt(e)
       setShowButton(true)
     }
@@ -35,36 +33,37 @@ export default function InstallPrompt() {
 
     const { outcome } = await deferredPrompt.userChoice
     if (outcome === 'accepted') {
-      console.log('Utilisateur a accepté l\'installation PWA')
-      // Masque immédiatement le bouton après acceptation
       setShowButton(false)
     }
-
     setDeferredPrompt(null)
   }
 
   if (!showButton) return null
 
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: '20px',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      backgroundColor: '#2563eb',
-      color: 'white',
-      padding: '12px 20px',
-      borderRadius: '30px',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-      zIndex: 1000,
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-      cursor: 'pointer',
-      fontWeight: 'bold',
-      fontSize: '14px'
-    }} onClick={handleInstallClick}>
+    <button
+      onClick={handleInstallClick}
+      style={{
+        position: 'fixed',
+        bottom: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        backgroundColor: '#2563eb',
+        color: 'white',
+        border: 'none',
+        padding: '12px 20px',
+        borderRadius: '30px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        cursor: 'pointer',
+        fontWeight: 'bold',
+        fontSize: '14px'
+      }}
+    >
       <span>📲 Installer TrocTruc SPM</span>
-    </div>
+    </button>
   )
 }
