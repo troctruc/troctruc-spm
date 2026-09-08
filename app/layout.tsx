@@ -1,7 +1,6 @@
 import './globals.css'
 import { Analytics } from '@vercel/analytics/react'
 import type { Metadata, Viewport } from 'next'
-import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -57,7 +56,6 @@ export default function RootLayout({
     <html lang="fr">
       <body>
         {children}
-        <ServiceWorkerRegister />
         <Analytics />
       </body>
     </html>
