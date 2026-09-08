@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import CovoiturageNavMenu from '@/components/CovoiturageNavMenu'
 import PushNotificationManager from '@/components/PushNotificationManager'
+import InstallPrompt from '@/components/InstallPrompt'
 
 export default function Home() {
   const router = useRouter()
@@ -539,6 +540,9 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* BOUTON D'INSTALLATION PWA */}
+      <InstallPrompt />
 
       {/* FOOTER */}
       <footer style={{ textAlign: 'center', marginTop: '60px', padding: '20px', borderTop: '1px solid #e1e4e8', color: '#7f8c8d', fontSize: '13px' }}>
