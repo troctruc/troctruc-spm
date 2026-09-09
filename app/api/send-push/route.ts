@@ -17,8 +17,16 @@ export async function POST(request: Request) {
 
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
-    const bodyData = await request.json();
-    console.log("📥 [DIAGNOSTIC] Objet complet reçu de Supabase :", JSON.stringify(bodyData));
+    // TECHNIQUE ANTI-CRASH : On récupère le texte brut au lieu de request.json()
+    const rawText = await request.text();
+    console.log("📥 [DIAGNOSTIC] Texte brut reçu de pg_net :", rawText);
+
+    let bodyData: any = {};
+    try {
+      bodyData = JSON.parse(rawText);
+    } catch (e) {
+      console.warn("⚠️ Impossible de parser directement le JSON. Tentative de nettoyage...");
+    }
     
     // Extraction plate (pg_net) ou imbriquée (webhook standard)
     const conversationId = bodyData?.conversation_id || bodyData?.record?.conversation_id || bodyData?.new?.conversation_id;
@@ -35,23 +43,16 @@ export async function POST(request: Request) {
     const encodedKey = "c2Jfc2VjcmV0X2hMV0JBakxIY1R5WERnalMtSlpNTmdfOVdOVkkwZTk=";
     const targetKey = Buffer.from(encodedKey, 'base64').toString('utf-8');
 
-    // SOLUTION ULTIME : On passe par les options globales pour verrouiller l'URL et empêcher l'écrasement automatique
     const supabase = createClient(targetUrl, targetKey, {
       auth: { 
         persistSession: false,
         autoRefreshToken: false,
         detectSessionInUrl: false
       },
-      global: {
-        headers: {
-          'X-Client-Info': 'supabase-js-custom',
-          'apikey': targetKey
-        }
-      },
       db: { schema: 'public' }
     });
 
-    // 1. Récupération de la conversation cible
+    // 1. Récupération de la conversation
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
       .select('buyer_id, seller_id')
@@ -60,10 +61,10 @@ export async function POST(request: Request) {
 
     if (convError || !conversation) {
       console.error(`❌ Échec de lecture de la conversation ID ${conversationId} :`, convError?.message || JSON.stringify(convError));
-      return NextResponse.json({ success: true, warning: 'Ligne introuvable ou blocage réseau' });
+      return NextResponse.json({ success: true, warning: 'Ligne introuvable' });
     }
 
-    // 2. Déterminer qui doit recevoir la notification push
+    // 2. Trouver le destinataire
     const recipientId = conversation.buyer_id === senderId ? conversation.seller_id : conversation.buyer_id;
     if (!recipientId) return NextResponse.json({ success: true, message: 'Destinataire introuvable' });
 
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
       url: '/messages'
     });
 
-    // 4. Distribution des signaux push web
+    // 4. Distribution des notifications push
     await Promise.all(
       subs.map(async (row) => {
         try {
