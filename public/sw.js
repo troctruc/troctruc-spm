@@ -20,36 +20,28 @@ export async function POST(request: Request) {
     const bodyData = await request.json();
     console.log("📥 [DIAGNOSTIC] Objet complet reçu de Supabase :", JSON.stringify(bodyData));
     
-    // Détection et extraction intelligente du record Supabase
-    let record = null;
-    if (bodyData && bodyData.record) {
-      record = bodyData.record;
-    } else if (bodyData && bodyData.new) {
-      record = bodyData.new;
-    } else {
-      record = bodyData;
-    }
+    // Extraction ultra-agressive du contenu du message
+    let record = bodyData?.record || bodyData?.new || bodyData?.data || bodyData;
     
-    // Si l'objet est imbriqué dans une chaîne textuelle
     if (typeof record === 'string') {
       try { record = JSON.parse(record); } catch(e) {}
     }
 
-    if (!record || (!record.conversation_id && !record.record?.conversation_id)) {
-      console.warn("⚠️ Webhook ignoré : Impossible de localiser la variable conversation_id.");
-      return NextResponse.json({ success: true, message: 'Données manquantes ou non lues' });
+    // Détection de l'identifiant de la conversation (gère conversation_id, conversation, et les variantes)
+    const conversationId = record?.conversation_id || record?.conversation || record?.conversationId;
+    const senderId = record?.sender_id || record?.sender || record?.senderId;
+    const messageContent = record?.content || 'Vous avez reçu un nouveau message';
+
+    if (!conversationId) {
+      console.warn("⚠️ Webhook ignoré : Impossible de trouver l'ID de la conversation dans :", JSON.stringify(record));
+      return NextResponse.json({ success: true, message: 'ID conversation introuvable' });
     }
 
-    const conversationId = record.conversation_id || record.record?.conversation_id;
-    const senderId = record.sender_id || record.record?.sender_id;
-    const messageContent = record.content || record.record?.content || 'Vous avez reçu un nouveau message';
-
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    // Utilisation de la clé admin secrète configurée tout à l'heure
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      console.error("❌ Configuration d'API Supabase introuvable ou illisible par le serveur NextJS.");
+      console.error("❌ Clé secrète ou URL Supabase manquante dans Vercel.");
       return NextResponse.json({ error: 'Variables serveur manquantes' }, { status: 500 });
     }
 
@@ -57,7 +49,7 @@ export async function POST(request: Request) {
       auth: { persistSession: false, autoRefreshToken: false }
     });
 
-    // 1. Identification de la conversation
+    // 1. Récupération de la conversation
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
       .select('buyer_id, seller_id')
@@ -65,14 +57,19 @@ export async function POST(request: Request) {
       .single();
 
     if (convError || !conversation) {
-      console.error('❌ Impossible d\'accéder à la table conversations :', convError);
-      return NextResponse.json({ success: true, warning: 'Lecture bloquée en base' });
+      console.error(`❌ Impossible d'accéder à la conversation ID ${conversationId} :`, convError);
+      return NextResponse.json({ success: true, warning: 'Ligne conversation introuvable ou RLS' });
     }
 
+    // Déterminer le destinataire
     const recipientId = conversation.buyer_id === senderId ? conversation.seller_id : conversation.buyer_id;
-    if (!recipientId) return NextResponse.json({ success: true, message: 'Destinataire introuvable' });
+    
+    if (!recipientId) {
+      console.warn("⚠️ Destinataire introuvable");
+      return NextResponse.json({ success: true, message: 'Destinataire introuvable' });
+    }
 
-    console.log(`👤 ID Destinataire identifié : ${recipientId}`);
+    console.log(`👤 Destinataire trouvé : ${recipientId}. Recherche des abonnements push...`);
 
     // 2. Récupération des abonnements push
     const { data: subs, error: subError } = await supabase
@@ -81,7 +78,7 @@ export async function POST(request: Request) {
       .eq('user_id', recipientId);
 
     if (subError || !subs || subs.length === 0) {
-      console.log(`ℹ️ Aucun terminal enregistré pour l'utilisateur ${recipientId}`);
+      console.log(`ℹ️ Aucun appareil enregistré (push_subscriptions) pour l'utilisateur ${recipientId}`);
       return NextResponse.json({ success: true, message: 'Zéro jeton trouvé' });
     }
 
@@ -91,15 +88,15 @@ export async function POST(request: Request) {
       url: '/messages'
     });
 
-    // 3. Distribution de la notification push
+    // 3. Envoi du push
     await Promise.all(
       subs.map(async (row) => {
         try {
           const subscriptionObject = typeof row.subscription === 'string' ? JSON.parse(row.subscription) : row.subscription;
           await webpush.sendNotification(subscriptionObject, payload);
-          console.log(`✅ Push envoyé à l'abonnement ID : ${row.id}`);
+          console.log(`✅ Notification Push envoyée avec succès au terminal ID : ${row.id}`);
         } catch (err: any) {
-          console.error(`❌ Erreur webpush :`, err.message);
+          console.error(`❌ Erreur d'envoi VAPID :`, err.message);
           if (err.statusCode === 410 || err.statusCode === 404) {
             await supabase.from('push_subscriptions').delete().eq('id', row.id);
           }
@@ -109,7 +106,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error('💥 Plantage critique :', err);
+    console.error('💥 Erreur critique du script :', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
