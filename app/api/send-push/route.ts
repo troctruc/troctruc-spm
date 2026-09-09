@@ -2,10 +2,9 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import webpush from 'web-push';
-import postgres from 'postgres';
+import { createClient } from '@supabase/supabase-js';
 
 export async function POST(request: Request) {
-  let sql: any = null;
   try {
     const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
@@ -18,15 +17,15 @@ export async function POST(request: Request) {
 
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
-    // Lecture du texte brut envoyé par pg_net
+    // Lecture propre du texte brut (Recommandé pour pg_net)
     const rawText = await request.text();
-    console.log("📥 [DIAGNOSTIC] Texte brut reçu :", rawText);
+    console.log("📥 [DIAGNOSTIC] Contenu brut reçu de Supabase :", rawText);
 
     let bodyData: any = {};
     try {
       bodyData = JSON.parse(rawText);
     } catch (e) {
-      // Parsing de sécurité
+      // Sécurité de parsing
     }
     
     const conversationId = bodyData?.conversation_id || bodyData?.record?.conversation_id || bodyData?.new?.conversation_id;
@@ -38,43 +37,53 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: 'Données manquantes' });
     }
 
-    // CONNEXION POSTGRES DIRECTE NATIVE (Contourne l'API REST Supabase)
-    const passPart1 = "XgjS-JZMNg";
-    const passPart2 = "_9WNVI0e9";
-    sql = postgres(`postgres://postgres.pkaobympjtftqgvmhjvk:sb_secret_hLWBAjLHcTy${passPart1}${passPart2}@://supabase.com`, {
-      ssl: 'require',
-      connect_timeout: 5
+    // ADRESSE UNIQUE DE VOTRE PROJET EN DUR
+    const supabaseUrl = "https://supabase.co";
+    
+    // CLÉ PUBLIQUE SÉCURISÉE (Autorisée par GitHub, lit les tables puisque RLS est désactivé)
+    const supabaseKey = "sb_publishable_IkgerRQwVuFEgUvTE6ezgA_UJxG3TDu74HRE_vVfFms=";
+
+    // CONFIGURATION SANS PROXY : On coupe tous les intermédiaires de cache qui renvoient du HTML
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { 
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false
+      },
+      global: {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      },
+      db: { schema: 'public' }
     });
 
-    // 1. Trouver la conversation directement en SQL brut
-    const conversations = await sql`
-      SELECT buyer_id, seller_id 
-      FROM conversations 
-      WHERE id = ${conversationId} 
-      LIMIT 1
-    `;
+    // 1. Trouver la conversation
+    const { data: conversation, error: convError } = await supabase
+      .from('conversations')
+      .select('buyer_id, seller_id')
+      .eq('id', conversationId)
+      .single();
 
-    if (!conversations || conversations.length === 0) {
-      console.error(`❌ Aucune conversation trouvée en base pour l'ID ${conversationId}`);
-      return NextResponse.json({ success: true, warning: 'Ligne introuvable' });
+    if (convError || !conversation) {
+      console.error(`❌ Échec de lecture de la conversation ID ${conversationId} :`, convError?.message || JSON.stringify(convError));
+      return NextResponse.json({ success: true, warning: 'Ligne introuvable ou problème réseau' });
     }
-
-    const conversation = conversations[0];
 
     // 2. Déterminer le destinataire
     const recipientId = conversation.buyer_id === senderId ? conversation.seller_id : conversation.buyer_id;
     if (!recipientId) return NextResponse.json({ success: true, message: 'Pas de destinataire' });
 
-    console.log(`👤 Connexion SQL réussie ! Destinataire identifié : ${recipientId}`);
+    console.log(`👤 Connexion validée ! Destinataire identifié : ${recipientId}`);
 
-    // 3. Chercher l'abonnement push en SQL brut
-    const subs = await sql`
-      SELECT id, subscription 
-      FROM push_subscriptions 
-      WHERE user_id = ${recipientId}
-    `;
+    // 3. Chercher l'abonnement push
+    const { data: subs, error: subError } = await supabase
+      .from('push_subscriptions')
+      .select('id, subscription')
+      .eq('user_id', recipientId);
 
-    if (!subs || subs.length === 0) {
+    if (subError || !subs || subs.length === 0) {
       console.log(`ℹ️ Aucun abonnement actif en base de données pour ${recipientId}`);
       return NextResponse.json({ success: true, message: 'Aucun jeton enregistré' });
     }
@@ -85,7 +94,7 @@ export async function POST(request: Request) {
       url: '/messages'
     });
 
-    // 4. Envoi du push web
+    // 4. Distribution des pushs
     await Promise.all(
       subs.map(async (row) => {
         try {
@@ -94,7 +103,7 @@ export async function POST(request: Request) {
           console.log(`✅ Notification push transmise au terminal ID : ${row.id}`);
         } catch (err: any) {
           if (err.statusCode === 410 || err.statusCode === 404) {
-            await sql`DELETE FROM push_subscriptions WHERE id = ${row.id}`;
+            await supabase.from('push_subscriptions').delete().eq('id', row.id);
           }
         }
       })
@@ -104,7 +113,5 @@ export async function POST(request: Request) {
   } catch (err: any) {
     console.error('💥 Erreur critique script :', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
-  } finally {
-    if (sql) await sql.end();
   }
 }
