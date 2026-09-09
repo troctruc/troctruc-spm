@@ -18,30 +18,36 @@ export async function POST(request: Request) {
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
     const bodyData = await request.json();
-    console.log("📥 Webhook reçu de Supabase. Type d'événement :", bodyData.type);
+    console.log("📥 Données complètes du Webhook reçues :", JSON.stringify(bodyData));
     
-    if (bodyData.type !== 'INSERT' || !bodyData.record) {
-      return NextResponse.json({ success: true, message: 'Non concerné (pas un INSERT)' });
+    // S'adapte si Supabase envoie l'événement dans le type ou directement à la racine
+    const record = bodyData.record || bodyData;
+    
+    if (!record || !record.conversation_id) {
+      console.warn("⚠️ Webhook ignoré : Aucun champ conversation_id trouvé.");
+      return NextResponse.json({ success: true, message: 'Non concerné ou données manquantes' });
     }
 
-    const record = bodyData.record;
     const senderId = record.sender_id;
     const conversationId = record.conversation_id;
     const messageContent = record.content || 'Vous avez reçu un nouveau message';
 
-    if (!conversationId || !senderId) {
-      return NextResponse.json({ success: true, warning: 'Conversation ou émetteur manquant' });
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    // On cherche sous tous les noms possibles la clé secrète ajoutée sur Vercel
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("❌ Configuration Supabase incomplète sur Vercel. URL ou clé secrète introuvable.");
+      return NextResponse.json({ error: 'Configuration serveur incomplète' }, { status: 500 });
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    // PRIORITÉ à la clé de service pour contourner la sécurité RLS lors du Webhook
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.warn("⚠️ Attention : Il manque la SUPABASE_SERVICE_ROLE_KEY sur Vercel, utilisation de la clé anon (risque de blocage RLS).");
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Initialisation sécurisée du client admin de Supabase
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      }
+    });
 
     // 1. Récupérer la conversation
     const { data: conversation, error: convError } = await supabase
@@ -51,8 +57,8 @@ export async function POST(request: Request) {
       .single();
 
     if (convError || !conversation) {
-      console.error('❌ Erreur de lecture de la conversation (Vérifier les RLS) :', convError);
-      return NextResponse.json({ success: true, warning: 'Impossible de trouver la conversation' });
+      console.error('❌ Erreur critique de lecture de la conversation :', convError);
+      return NextResponse.json({ success: true, warning: 'Impossible de lire la conversation (Vérifier la clé secrète)' });
     }
 
     // Déterminer le destinataire
@@ -64,7 +70,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: 'Destinataire introuvable' });
     }
 
-    console.log(`👤 Message de ${senderId} pour le destinataire ${recipientId}`);
+    console.log(`👤 Destinataire ciblé pour la notification : ${recipientId}`);
 
     // 2. Récupérer l'abonnement push du destinataire
     const { data: subs, error: subError } = await supabase
@@ -78,11 +84,9 @@ export async function POST(request: Request) {
     }
 
     if (!subs || subs.length === 0) {
-      console.log("ℹ️ Aucun abonnement push trouvé en base de données pour ce destinataire.");
-      return NextResponse.json({ success: true, message: 'Aucun abonnement push pour le destinataire' });
+      console.log("ℹ️ Aucun abonnement push en base de données pour ce destinataire.");
+      return NextResponse.json({ success: true, message: 'Aucun abonnement push trouvé.' });
     }
-
-    console.log(`📢 ${subs.length} abonnement(s) push trouvé(s). Envoi en cours...`);
 
     const payload = JSON.stringify({
       title: 'Nouveau message sur TrocTruc SPM',
@@ -93,17 +97,15 @@ export async function POST(request: Request) {
     await Promise.all(
       subs.map(async (row) => {
         try {
-          // Sécurité : Si l'abonnement est stocké sous forme de chaîne de caractères, on le transforme en objet
           const subscriptionObject = typeof row.subscription === 'string' 
             ? JSON.parse(row.subscription) 
             : row.subscription;
 
           await webpush.sendNotification(subscriptionObject, payload);
-          console.log(`✅ Notification envoyée avec succès pour l'abonnement ID : ${row.id}`);
+          console.log(`✅ Notification Push envoyée avec succès ! ID: ${row.id}`);
         } catch (err: any) {
-          console.error(`❌ Échec d'envoi pour l'abonnement ${row.id} (Code: ${err.statusCode}) :`, err.message);
+          console.error(`❌ Échec d'envoi pour l'abonnement ${row.id} :`, err.message);
           if (err.statusCode === 410 || err.statusCode === 404) {
-            console.log(`🗑️ Nettoyage : Suppression de l'abonnement expiré ID ${row.id}`);
             await supabase.from('push_subscriptions').delete().eq('id', row.id);
           }
         }
@@ -112,7 +114,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error('💥 Erreur critique dans le webhook push :', err);
+    console.error('💥 Erreur générale interceptée :', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
