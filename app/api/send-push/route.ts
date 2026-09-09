@@ -20,18 +20,18 @@ export async function POST(request: Request) {
     const bodyData = await request.json();
     console.log("📥 Données complètes du Webhook reçues :", JSON.stringify(bodyData));
     
-    // Extraction ultra-sécurisée du record envoyé par Supabase
+    // Extraction universelle pour capter tous les formats de Webhook Supabase
     let record = null;
     if (bodyData && bodyData.record) {
       record = bodyData.record;
     } else if (bodyData && bodyData.new) {
-      record = bodyData.new; // Gère le format de réplication de Supabase
+      record = bodyData.new;
     } else {
       record = bodyData;
     }
     
     if (!record || !record.conversation_id) {
-      console.warn("⚠️ Webhook ignoré : Aucun champ conversation_id trouvé.");
+      console.warn("⚠️ Webhook ignoré : Aucun champ conversation_id trouvé dans le record.");
       return NextResponse.json({ success: true, message: 'Non concerné ou données manquantes' });
     }
 
@@ -40,14 +40,15 @@ export async function POST(request: Request) {
     const messageContent = record.content || 'Vous avez reçu un nouveau message';
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    // On essaye de récupérer la clé secrète admin sous ses deux variantes possibles
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      console.error("❌ Configuration Supabase incomplète sur Vercel. URL ou clé secrète introuvable.");
+      console.error("❌ Configuration Supabase incomplète sur Vercel. Clé secrète introuvable.");
       return NextResponse.json({ error: 'Configuration serveur incomplète' }, { status: 500 });
     }
 
-    // Initialisation du client admin de Supabase
+    // Initialisation du client admin (outrepasse les sécurités RLS)
     const supabase = createClient(supabaseUrl, supabaseKey, {
       auth: {
         persistSession: false,
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
       }
     });
 
-    // 1. Récupérer la conversation
+    // 1. Récupérer la conversation pour identifier le destinataire
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
       .select('buyer_id, seller_id')
@@ -67,16 +68,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, warning: 'Impossible de lire la conversation' });
     }
 
-    // Déterminer le destinataire
+    // Déterminer qui doit recevoir la notification
     const recipientId = conversation.buyer_id === senderId 
       ? conversation.seller_id 
       : conversation.buyer_id;
 
     if (!recipientId) {
+      console.warn("⚠️ Destinataire introuvable dans cette conversation.");
       return NextResponse.json({ success: true, message: 'Destinataire introuvable' });
     }
 
-    console.log(`👤 Destinataire ciblé pour la notification : ${recipientId}`);
+    console.log(`👤 Destinataire ciblé pour le push : ${recipientId}`);
 
     // 2. Récupérer l'abonnement push du destinataire
     const { data: subs, error: subError } = await supabase
@@ -100,6 +102,7 @@ export async function POST(request: Request) {
       url: '/messages'
     });
 
+    // 3. Envoyer en parallèle sur tous les terminaux enregistrés
     await Promise.all(
       subs.map(async (row) => {
         try {
@@ -111,6 +114,7 @@ export async function POST(request: Request) {
           console.log(`✅ Notification Push envoyée avec succès ! ID: ${row.id}`);
         } catch (err: any) {
           console.error(`❌ Échec d'envoi pour l'abonnement ${row.id} :`, err.message);
+          // Si le jeton est expiré, on le nettoie automatiquement
           if (err.statusCode === 410 || err.statusCode === 404) {
             await supabase.from('push_subscriptions').delete().eq('id', row.id);
           }
