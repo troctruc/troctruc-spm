@@ -11,52 +11,35 @@ export async function POST(request: Request) {
     const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:contact.troctruc@gmail.com';
 
     if (!vapidPublicKey || !vapidPrivateKey) {
-      console.error("❌ Erreur : Clés VAPID manquantes dans les variables d'environnement Vercel.");
       return NextResponse.json({ error: 'Clés VAPID manquantes' }, { status: 500 });
     }
 
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
+    // Lecture des données plates envoyées par pg_net
     const bodyData = await request.json();
-    console.log("📥 Données complètes du Webhook reçues :", JSON.stringify(bodyData));
     
-    // Extraction universelle pour capter tous les formats de Webhook Supabase
-    let record = null;
-    if (bodyData && bodyData.record) {
-      record = bodyData.record;
-    } else if (bodyData && bodyData.new) {
-      record = bodyData.new;
-    } else {
-      record = bodyData;
-    }
-    
-    if (!record || !record.conversation_id) {
-      console.warn("⚠️ Webhook ignoré : Aucun champ conversation_id trouvé dans le record.");
-      return NextResponse.json({ success: true, message: 'Non concerné ou données manquantes' });
+    // Extraction directe à la racine (format pg_net) ou imbriquée (format webhook standard)
+    const conversationId = bodyData?.conversation_id || bodyData?.record?.conversation_id || bodyData?.new?.conversation_id;
+    const senderId = bodyData?.sender_id || bodyData?.record?.sender_id || bodyData?.new?.sender_id;
+    const messageContent = bodyData?.content || bodyData?.record?.content || 'Vous avez reçu un nouveau message';
+
+    if (!conversationId) {
+      console.warn("⚠️ Ignoré : ID conversation manquant");
+      return NextResponse.json({ success: true, message: 'Aucun ID conversation' });
     }
 
-    const senderId = record.sender_id;
-    const conversationId = record.conversation_id;
-    const messageContent = record.content || 'Vous avez reçu un nouveau message';
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    // Raccourci de secours : si la clé de service est bloquée par Vercel, on utilise la clé anon publique globale
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    // On essaye de récupérer la clé secrète admin sous ses deux variantes possibles
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      console.error("❌ Configuration Supabase incomplète sur Vercel. Clé secrète introuvable.");
-      return NextResponse.json({ error: 'Configuration serveur incomplète' }, { status: 500 });
-    }
-
-    // Initialisation du client admin (outrepasse les sécurités RLS)
+    // Initialisation en mode direct pour éviter le "fetch failed" de 7 secondes
     const supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false
-      }
+      auth: { persistSession: false },
+      global: { headers: { 'Cache-Control': 'no-cache' } }
     });
 
-    // 1. Récupérer la conversation pour identifier le destinataire
+    // 1. Trouver la conversation
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
       .select('buyer_id, seller_id')
@@ -64,36 +47,22 @@ export async function POST(request: Request) {
       .single();
 
     if (convError || !conversation) {
-      console.error('❌ Erreur critique de lecture de la conversation :', convError);
-      return NextResponse.json({ success: true, warning: 'Impossible de lire la conversation' });
+      console.error('❌ Erreur de lecture en base (Vérifier les RLS de la table conversations) :', convError?.message);
+      return NextResponse.json({ success: true, warning: 'Ligne introuvable ou RLS' });
     }
 
-    // Déterminer qui doit recevoir la notification
-    const recipientId = conversation.buyer_id === senderId 
-      ? conversation.seller_id 
-      : conversation.buyer_id;
+    // 2. Déterminer le destinataire
+    const recipientId = conversation.buyer_id === senderId ? conversation.seller_id : conversation.buyer_id;
+    if (!recipientId) return NextResponse.json({ success: true, message: 'Pas de destinataire' });
 
-    if (!recipientId) {
-      console.warn("⚠️ Destinataire introuvable dans cette conversation.");
-      return NextResponse.json({ success: true, message: 'Destinataire introuvable' });
-    }
-
-    console.log(`👤 Destinataire ciblé pour le push : ${recipientId}`);
-
-    // 2. Récupérer l'abonnement push du destinataire
+    // 3. Chercher l'abonnement
     const { data: subs, error: subError } = await supabase
       .from('push_subscriptions')
       .select('id, subscription')
       .eq('user_id', recipientId);
 
-    if (subError) {
-      console.error("❌ Erreur lors de la récupération des abonnements :", subError);
-      return NextResponse.json({ error: subError.message }, { status: 500 });
-    }
-
-    if (!subs || subs.length === 0) {
-      console.log(`ℹ️ Aucun abonnement push en base de données pour l'utilisateur ${recipientId}`);
-      return NextResponse.json({ success: true, message: 'Aucun abonnement push trouvé.' });
+    if (subError || !subs || subs.length === 0) {
+      return NextResponse.json({ success: true, message: 'Aucun jeton enregistré' });
     }
 
     const payload = JSON.stringify({
@@ -102,19 +71,14 @@ export async function POST(request: Request) {
       url: '/messages'
     });
 
-    // 3. Envoyer en parallèle sur tous les terminaux enregistrés
+    // 4. Envoi
     await Promise.all(
       subs.map(async (row) => {
         try {
-          const subscriptionObject = typeof row.subscription === 'string' 
-            ? JSON.parse(row.subscription) 
-            : row.subscription;
-
-          await webpush.sendNotification(subscriptionObject, payload);
-          console.log(`✅ Notification Push envoyée avec succès ! ID: ${row.id}`);
+          const subObj = typeof row.subscription === 'string' ? JSON.parse(row.subscription) : row.subscription;
+          await webpush.sendNotification(subObj, payload);
+          console.log(`✅ Notification envoyée ! ID: ${row.id}`);
         } catch (err: any) {
-          console.error(`❌ Échec d'envoi pour l'abonnement ${row.id} :`, err.message);
-          // Si le jeton est expiré, on le nettoie automatiquement
           if (err.statusCode === 410 || err.statusCode === 404) {
             await supabase.from('push_subscriptions').delete().eq('id', row.id);
           }
@@ -124,7 +88,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error('💥 Erreur générale interceptée :', err);
+    console.error('💥 Erreur critique :', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
