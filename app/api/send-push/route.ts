@@ -20,8 +20,15 @@ export async function POST(request: Request) {
     const bodyData = await request.json();
     console.log("📥 Données complètes du Webhook reçues :", JSON.stringify(bodyData));
     
-    // S'adapte si Supabase envoie l'événement dans le type ou directement à la racine
-    const record = bodyData.record || bodyData;
+    // Extraction ultra-sécurisée du record envoyé par Supabase
+    let record = null;
+    if (bodyData && bodyData.record) {
+      record = bodyData.record;
+    } else if (bodyData && bodyData.new) {
+      record = bodyData.new; // Gère le format de réplication de Supabase
+    } else {
+      record = bodyData;
+    }
     
     if (!record || !record.conversation_id) {
       console.warn("⚠️ Webhook ignoré : Aucun champ conversation_id trouvé.");
@@ -33,7 +40,6 @@ export async function POST(request: Request) {
     const messageContent = record.content || 'Vous avez reçu un nouveau message';
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    // On cherche sous tous les noms possibles la clé secrète ajoutée sur Vercel
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
@@ -41,7 +47,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Configuration serveur incomplète' }, { status: 500 });
     }
 
-    // Initialisation sécurisée du client admin de Supabase
+    // Initialisation du client admin de Supabase
     const supabase = createClient(supabaseUrl, supabaseKey, {
       auth: {
         persistSession: false,
@@ -58,7 +64,7 @@ export async function POST(request: Request) {
 
     if (convError || !conversation) {
       console.error('❌ Erreur critique de lecture de la conversation :', convError);
-      return NextResponse.json({ success: true, warning: 'Impossible de lire la conversation (Vérifier la clé secrète)' });
+      return NextResponse.json({ success: true, warning: 'Impossible de lire la conversation' });
     }
 
     // Déterminer le destinataire
@@ -84,7 +90,7 @@ export async function POST(request: Request) {
     }
 
     if (!subs || subs.length === 0) {
-      console.log("ℹ️ Aucun abonnement push en base de données pour ce destinataire.");
+      console.log(`ℹ️ Aucun abonnement push en base de données pour l'utilisateur ${recipientId}`);
       return NextResponse.json({ success: true, message: 'Aucun abonnement push trouvé.' });
     }
 
