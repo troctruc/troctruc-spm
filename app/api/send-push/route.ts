@@ -17,9 +17,9 @@ export async function POST(request: Request) {
 
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
-    // Lecture propre du texte brut (Recommandé pour pg_net)
+    // Lecture propre du texte brut
     const rawText = await request.text();
-    console.log("📥 [DIAGNOSTIC] Contenu brut reçu de Supabase :", rawText);
+    console.log("📥 [DIAGNOSTIC] Contenu brut reçu :", rawText);
 
     let bodyData: any = {};
     try {
@@ -38,15 +38,20 @@ export async function POST(request: Request) {
     }
 
     const supabaseUrl = "https://supabase.co";
-    
-    // ON REPASSE SUR LA CLÉ PUBLIQUE SÉCURISÉE (Zéro bug d'URL, acceptée par GitHub)
     const supabaseKey = "sb_publishable_IkgerRQwVuFEgUvTE6ezgA_UJxG3TDu74HRE_vVfFms=";
 
+    // FORÇAGE DU HEADER GLOBAL : Donne l'autorisation directe à pg_net de lire la table
     const supabase = createClient(supabaseUrl, supabaseKey, {
       auth: { 
         persistSession: false,
         autoRefreshToken: false,
         detectSessionInUrl: false
+      },
+      global: {
+        headers: {
+          'Authorization': `Bearer ${supabaseKey}`,
+          'apikey': supabaseKey
+        }
       },
       db: { schema: 'public' }
     });
@@ -60,16 +65,15 @@ export async function POST(request: Request) {
 
     if (convError || !conversation) {
       console.error(`❌ Échec de lecture de la conversation ID ${conversationId} :`, convError?.message || JSON.stringify(convError));
-      return NextResponse.json({ success: true, warning: 'Ligne introuvable' });
+      return NextResponse.json({ success: true, warning: 'Ligne introuvable ou problème de droits' });
     }
 
-    // 2. Déterminer le destinataire
     const recipientId = conversation.buyer_id === senderId ? conversation.seller_id : conversation.buyer_id;
     if (!recipientId) return NextResponse.json({ success: true, message: 'Pas de destinataire' });
 
     console.log(`👤 Connexion validée ! Destinataire identifié : ${recipientId}`);
 
-    // 3. Chercher l'abonnement push
+    // 2. Chercher l'abonnement push
     const { data: subs, error: subError } = await supabase
       .from('push_subscriptions')
       .select('id, subscription')
@@ -86,7 +90,7 @@ export async function POST(request: Request) {
       url: '/messages'
     });
 
-    // 4. Distribution des pushs
+    // 3. Envoi du push
     await Promise.all(
       subs.map(async (row) => {
         try {
