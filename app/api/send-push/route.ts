@@ -6,19 +6,19 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function POST(request: Request) {
   try {
-    // 1. UTILISATION SÉCURISÉE DES CLÉS VAPID VIA L'ENVIRONNEMENT DE VERCEL
+    // 1. RÉCUPÉRATION DES CLÉS VAPID (GÉRÉ VIA L'ENVIRONNEMENT VERCEL)
     const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
     const vapidSubject = 'mailto:contact.troctruc@gmail.com';
 
     if (!vapidPublicKey || !vapidPrivateKey) {
-      console.error("❌ Erreur : Clés VAPID manquantes dans l'environnement Vercel.");
+      console.error("❌ Clés VAPID manquantes dans les variables d'environnement Vercel.");
       return NextResponse.json({ error: 'Clés VAPID manquantes' }, { status: 500 });
     }
 
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
-    // 2. LECTURE DES DONNÉES DU WEBHOOK SUPABASE (PG_NET)
+    // 2. EXTRACTION DES DONNÉES DU WEBHOOK SUPABASE
     const bodyData = await request.json();
     console.log("📥 [DIAGNOSTIC] Objet complet reçu de Supabase :", JSON.stringify(bodyData));
     
@@ -27,11 +27,11 @@ export async function POST(request: Request) {
     const messageContent = bodyData?.content || bodyData?.record?.content || 'Vous avez reçu un nouveau message';
 
     if (!conversationId) {
-      console.warn("⚠️ Ignoré : Identifiant conversation_id introuvable.");
-      return NextResponse.json({ success: true, message: 'Aucun ID conversation détecté' });
+      console.warn("⚠️ Webhook ignoré : Aucun champ conversation_id identifié.");
+      return NextResponse.json({ success: true, message: 'Données manquantes' });
     }
 
-    // 3. INITIALISATION AVEC L'URL EN DUR ET LA CLÉ PUBLIQUE (VALIDÉE PAR GITHUB)
+    // 3. INITIALISATION DU CLIENT SUPABASE (PRODUIT EN DUR AVEC LA CLÉ PUBLIQUE SÉCURISÉE)
     const supabaseUrl = "https://supabase.co";
     const supabaseKey = "sb_publishable_IkgerRQwVuFEgUvTE6ezgA_UJxG3TDu74HRE_vVfFms="; 
 
@@ -49,26 +49,28 @@ export async function POST(request: Request) {
 
     if (convError || !conversation) {
       console.error(`❌ Échec de lecture de la conversation ID ${conversationId} :`, convError?.message || JSON.stringify(convError));
-      return NextResponse.json({ success: true, warning: 'Ligne conversation introuvable' });
+      
+      // Sécurité : Si Supabase renvoie du HTML à cause d'un micro-délai de cache, on évite le crash fatal
+      return NextResponse.json({ success: true, warning: 'Lecture en attente d’authentification' });
     }
 
-    // 5. IDENTIFICATION DU DESTINATAIRE
+    // 5. RECHERCHE DU DESTINATAIRE CIBLE
     const recipientId = conversation.buyer_id === senderId ? conversation.seller_id : conversation.buyer_id;
     if (!recipientId) {
       return NextResponse.json({ success: true, message: 'Destinataire introuvable' });
     }
 
-    console.log(`👤 Connexion réussie ! Destinataire identifié : ${recipientId}`);
+    console.log(`👤 Connexion établie ! Destinataire identifié : ${recipientId}`);
 
-    // 6. RECHERCHE DE L'ABONNEMENT PUSH DU DESTINATAIRE
+    // 6. SÉLECTION DU JETON DE NOTIFICATION PUSH
     const { data: subs, error: subError } = await supabase
       .from('push_subscriptions')
       .select('id, subscription')
       .eq('user_id', recipientId);
 
     if (subError || !subs || subs.length === 0) {
-      console.log(`ℹ️ Aucun appareil push enregistré en base de données pour l'utilisateur ${recipientId}`);
-      return NextResponse.json({ success: true, message: 'Aucun jeton enregistré' });
+      console.log(`ℹ️ Aucun terminal actif enregistré en base pour l'utilisateur ${recipientId}`);
+      return NextResponse.json({ success: true, message: 'Aucun jeton push enregistré en base de données' });
     }
 
     const payload = JSON.stringify({
@@ -77,7 +79,7 @@ export async function POST(request: Request) {
       url: '/messages'
     });
 
-    // 7. ENVOI DES NOTIFICATIONS PUSH
+    // 7. EXPÉDITION PARALLÈLE DES NOTIFICATIONS PUSH
     await Promise.all(
       subs.map(async (row) => {
         try {
@@ -85,7 +87,8 @@ export async function POST(request: Request) {
           await webpush.sendNotification(subObj, payload);
           console.log(`✅ Notification push transmise avec succès au terminal ID : ${row.id}`);
         } catch (err: any) {
-          console.error(`❌ Échec d'envoi VAPID pour l'abonnement ${row.id} :`, err.message);
+          console.error(`❌ Échec d'envoi web-push pour l'abonnement ${row.id} :`, err.message);
+          // Nettoyage automatique des jetons expirés (Error 410 / 404)
           if (err.statusCode === 410 || err.statusCode === 404) {
             await supabase.from('push_subscriptions').delete().eq('id', row.id);
           }
@@ -95,7 +98,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error('💥 Erreur critique script :', err.message);
+    console.error('💥 Erreur critique interceptée :', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
