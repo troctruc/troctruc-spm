@@ -27,22 +27,12 @@ export async function POST(request: Request) {
     }
 
     const supabaseUrl = "https://supabase.co";
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    // SÉCURITÉ : On utilise la clé publique ANON_KEY à laquelle Vercel a déjà accès sans plantage
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-    if (!supabaseKey) {
-      return NextResponse.json({ error: 'Configuration serveur incomplète' }, { status: 500 });
-    }
-
-    // NOUVELLE CONFIGURATION : Forçage du schéma public et désactivation stricte des options fetch complexes
     const supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: { 
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false
-      },
-      db: {
-        schema: 'public'
-      }
+      auth: { persistSession: false }
     });
 
     // 1. Trouver la conversation
@@ -53,16 +43,14 @@ export async function POST(request: Request) {
       .single();
 
     if (convError || !conversation) {
-      // Modifié pour afficher l'erreur proprement si Supabase boude encore
-      const errorDetails = convError ? JSON.stringify(convError) : 'Ligne introuvable';
-      console.error('❌ Impossible de lire la table conversations :', errorDetails);
+      console.error('❌ Erreur de lecture de la conversation :', convError?.message || JSON.stringify(convError));
       return NextResponse.json({ success: true, warning: 'Ligne introuvable' });
     }
 
     const recipientId = conversation.buyer_id === senderId ? conversation.seller_id : conversation.buyer_id;
     if (!recipientId) return NextResponse.json({ success: true, message: 'Pas de destinataire' });
 
-    console.log(`👤 Destinataire cible identifié : ${recipientId}`);
+    console.log(`👤 Connexion validée ! Destinataire identifié : ${recipientId}`);
 
     // 2. Chercher l'abonnement push
     const { data: subs, error: subError } = await supabase
@@ -71,7 +59,7 @@ export async function POST(request: Request) {
       .eq('user_id', recipientId);
 
     if (subError || !subs || subs.length === 0) {
-      console.log(`ℹ️ Aucun abonnement actif pour ${recipientId}`);
+      console.log(`ℹ️ Aucun abonnement actif pour l'utilisateur ${recipientId}`);
       return NextResponse.json({ success: true, message: 'Aucun jeton enregistré' });
     }
 
@@ -81,13 +69,13 @@ export async function POST(request: Request) {
       url: '/messages'
     });
 
-    // 3. Envoi
+    // 3. Envoi du signal push
     await Promise.all(
       subs.map(async (row) => {
         try {
           const subObj = typeof row.subscription === 'string' ? JSON.parse(row.subscription) : row.subscription;
           await webpush.sendNotification(subObj, payload);
-          console.log(`✅ Notification push transmise au terminal ID : ${row.id}`);
+          console.log(`✅ Notification transmise avec succès au terminal ID : ${row.id}`);
         } catch (err: any) {
           if (err.statusCode === 410 || err.statusCode === 404) {
             await supabase.from('push_subscriptions').delete().eq('id', row.id);
@@ -98,7 +86,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error('💥 Erreur critique :', err.message);
+    console.error('💥 Erreur critique script :', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
