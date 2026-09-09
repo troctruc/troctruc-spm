@@ -35,26 +35,26 @@ export async function POST(request: Request) {
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 1. Trouver les participants de la conversation pour identifier le destinataire (celui qui n'est pas l'émetteur)
-    // Adaptez le nom de la table de liaison si elle s'appelle différemment (ex: conversation_participants ou conversations)
-    const { data: participants, error: partError } = await supabase
-      .from('conversation_participants') // ou 'conversations' selon votre structure
-      .select('user_id')
-      .eq('conversation_id', conversationId);
+    // 1. Récupérer la conversation pour identifier le buyer_id et le seller_id
+    const { data: conversation, error: convError } = await supabase
+      .from('conversations')
+      .select('buyer_id, seller_id')
+      .eq('id', conversationId)
+      .single();
 
-    if (partError || !participants) {
-      console.error('Erreur récupération participants :', partError);
-      return NextResponse.json({ success: true, warning: 'Impossible de trouver les participants' });
+    if (convError || !conversation) {
+      console.error('Erreur récupération conversation :', convError);
+      return NextResponse.json({ success: true, warning: 'Impossible de trouver la conversation' });
     }
 
-    // Le destinataire est le participant dont l'ID est différent de l'émetteur du message
-    const recipient = participants.find((p: any) => p.user_id !== senderId);
+    // Le destinataire est celui qui n'est pas l'émetteur du message
+    const recipientId = conversation.buyer_id === senderId 
+      ? conversation.seller_id 
+      : conversation.buyer_id;
 
-    if (!recipient) {
-      return NextResponse.json({ success: true, message: 'Aucun destinataire tiers trouvé' });
+    if (!recipientId) {
+      return NextResponse.json({ success: true, message: 'Destinataire introuvable' });
     }
-
-    const recipientId = recipient.user_id;
 
     // 2. Récupérer l'abonnement push du destinataire
     const { data: subs, error: subError } = await supabase
