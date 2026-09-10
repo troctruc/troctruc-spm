@@ -31,6 +31,15 @@ export default function ChatModal({
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  const sortMessages = (list: any[]) => {
+    return [...list].sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime()
+      const dateB = new Date(b.created_at).getTime()
+
+      return dateA - dateB
+    })
+  }
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({
       behavior: 'smooth'
@@ -134,7 +143,7 @@ export default function ChatModal({
           interlocutorId = sellerId
         }
 
-        // 2. Récupérer le profil de l'interlocuteur
+        // 2. Récupération du profil de l'interlocuteur
         if (interlocutorId && isMounted) {
           const { data: pData } = await supabase
             .from('profiles')
@@ -152,7 +161,7 @@ export default function ChatModal({
           }
         }
 
-        // 3. Récupérer les messages
+        // 3. Récupération des messages
         if (activeConvId && isMounted) {
           setConversationId(activeConvId)
 
@@ -168,7 +177,7 @@ export default function ChatModal({
             })
 
           if (!msgError && msgs) {
-            setMessages(msgs)
+            setMessages(sortMessages(msgs))
           }
         }
       } catch (err) {
@@ -195,7 +204,7 @@ export default function ChatModal({
     initialConvId
   ])
 
-  // Temps réel Supabase (WebSocket)
+  // Temps réel Supabase
   useEffect(() => {
     if (!conversationId) return
 
@@ -215,17 +224,16 @@ export default function ChatModal({
           setMessages((prev) => {
             if (
               prev.some(
-                (msg) =>
-                  msg.id === incomingMessage.id
+                (msg) => msg.id === incomingMessage.id
               )
             ) {
               return prev
             }
 
-            return [
+            return sortMessages([
               ...prev,
               incomingMessage
-            ]
+            ])
           })
         }
       )
@@ -248,8 +256,7 @@ export default function ChatModal({
       return
     }
 
-    const textToSend =
-      newMessage.trim()
+    const textToSend = newMessage.trim()
 
     setNewMessage('')
 
@@ -260,12 +267,9 @@ export default function ChatModal({
       .from('messages')
       .insert([
         {
-          conversation_id:
-            conversationId,
-          sender_id:
-            currentUserId,
-          content:
-            textToSend
+          conversation_id: conversationId,
+          sender_id: currentUserId,
+          content: textToSend
         }
       ])
       .select()
@@ -276,9 +280,7 @@ export default function ChatModal({
           error.message
       )
 
-      setNewMessage(
-        textToSend
-      )
+      setNewMessage(textToSend)
 
       return
     }
@@ -291,21 +293,20 @@ export default function ChatModal({
         if (
           prev.some(
             (msg) =>
-              msg.id ===
-              data[0].id
+              msg.id === data[0].id
           )
         ) {
           return prev
         }
 
-        return [
+        return sortMessages([
           ...prev,
           data[0]
-        ]
+        ])
       })
     }
 
-    // 🔔 Déclenchement de la notification push
+    // Notification push
     try {
       const pushResponse =
         await fetch(
@@ -330,9 +331,7 @@ export default function ChatModal({
       const pushResult =
         await pushResponse.json()
 
-      if (
-        !pushResponse.ok
-      ) {
+      if (!pushResponse.ok) {
         console.error(
           'Erreur API send-push :',
           pushResult
@@ -373,15 +372,14 @@ export default function ChatModal({
           'system-ui, -apple-system, sans-serif'
       }}
     >
-      {/* Header avec informations sur l'interlocuteur */}
+      {/* Header */}
       <div
         style={{
           backgroundColor: '#1e293b',
           color: 'white',
           padding: '10px 14px',
           display: 'flex',
-          justifyContent:
-            'space-between',
+          justifyContent: 'space-between',
           alignItems: 'center'
         }}
       >
@@ -411,33 +409,24 @@ export default function ChatModal({
             style={{
               width: '32px',
               height: '32px',
-              borderRadius:
-                '50%',
-              backgroundColor:
-                '#334155',
+              borderRadius: '50%',
+              backgroundColor: '#334155',
               display: 'flex',
-              alignItems:
-                'center',
-              justifyContent:
-                'center',
-              overflow:
-                'hidden',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
               flexShrink: 0,
-              border:
-                '1px solid #64748b'
+              border: '1px solid #64748b'
             }}
           >
             {otherUser?.avatar_url ? (
               <img
-                src={
-                  otherUser.avatar_url
-                }
+                src={otherUser.avatar_url}
                 alt="Avatar"
                 style={{
                   width: '100%',
                   height: '100%',
-                  objectFit:
-                    'cover'
+                  objectFit: 'cover'
                 }}
               />
             ) : (
@@ -456,21 +445,15 @@ export default function ChatModal({
               style={{
                 margin: 0,
                 fontSize: '14px',
-                fontWeight:
-                  '600',
+                fontWeight: '600',
                 color: '#f8fafc',
-                whiteSpace:
-                  'nowrap',
-                overflow:
-                  'hidden',
-                textOverflow:
-                  'ellipsis',
-                maxWidth:
-                  '200px'
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '200px'
               }}
             >
-              {otherUser?.pseudo ||
-                'Discussion'}
+              {otherUser?.pseudo || 'Discussion'}
             </h3>
 
             <span
@@ -508,225 +491,170 @@ export default function ChatModal({
           padding: '15px',
           overflowY: 'auto',
           display: 'flex',
-          flexDirection:
-            'column',
+          flexDirection: 'column',
           gap: '10px',
-          backgroundColor:
-            '#f8fafc'
+          backgroundColor: '#f8fafc'
         }}
       >
         {loading ? (
           <p
             style={{
-              textAlign:
-                'center',
+              textAlign: 'center',
               color: '#94a3b8',
               fontSize: '13px',
-              marginTop:
-                '20px'
+              marginTop: '20px'
             }}
           >
             Chargement...
           </p>
-        ) : messages.length ===
-          0 ? (
+        ) : messages.length === 0 ? (
           <p
             style={{
-              textAlign:
-                'center',
+              textAlign: 'center',
               color: '#94a3b8',
               fontSize: '13px',
-              marginTop:
-                '20px',
-              fontStyle:
-                'italic'
+              marginTop: '20px',
+              fontStyle: 'italic'
             }}
           >
-            Aucun message pour
-            l'instant.
+            Aucun message pour l'instant.
             <br />
-            Engagez la
-            conversation !
+            Engagez la conversation !
           </p>
         ) : (
-          messages.map(
-            (msg) => {
-              const isMe =
-                msg.sender_id ===
-                currentUserId
+          messages.map((msg) => {
+            const isMe =
+              msg.sender_id === currentUserId
 
-              return (
+            return (
+              <div
+                key={msg.id}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignSelf:
+                    isMe
+                      ? 'flex-end'
+                      : 'flex-start',
+                  maxWidth: '78%'
+                }}
+              >
+                {!isMe &&
+                  otherUser?.pseudo && (
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        color: '#64748b',
+                        marginBottom: '2px',
+                        fontWeight: '500'
+                      }}
+                    >
+                      {otherUser.pseudo}
+                    </span>
+                  )}
+
                 <div
-                  key={msg.id}
                   style={{
-                    display:
-                      'flex',
-                    flexDirection:
-                      'column',
-                    alignSelf:
+                    backgroundColor:
                       isMe
-                        ? 'flex-end'
-                        : 'flex-start',
-                    maxWidth:
-                      '78%'
+                        ? '#2563eb'
+                        : '#e2e8f0',
+                    color:
+                      isMe
+                        ? '#ffffff'
+                        : '#1e293b',
+                    padding: '8px 12px',
+                    borderRadius: '12px',
+                    fontSize: '13px',
+                    lineHeight: '1.4',
+                    borderBottomRightRadius:
+                      isMe
+                        ? '2px'
+                        : '12px',
+                    borderBottomLeftRadius:
+                      isMe
+                        ? '12px'
+                        : '2px',
+                    boxShadow:
+                      '0 1px 2px rgba(0,0,0,0.05)',
+                    wordBreak: 'break-word'
                   }}
                 >
-                  {!isMe &&
-                    otherUser?.pseudo && (
-                      <span
-                        style={{
-                          fontSize:
-                            '11px',
-                          color:
-                            '#64748b',
-                          marginBottom:
-                            '2px',
-                          fontWeight:
-                            '500'
-                        }}
-                      >
-                        {
-                          otherUser.pseudo
-                        }
-                      </span>
-                    )}
-
-                  <div
-                    style={{
-                      backgroundColor:
-                        isMe
-                          ? '#2563eb'
-                          : '#e2e8f0',
-                      color:
-                        isMe
-                          ? '#ffffff'
-                          : '#1e293b',
-                      padding:
-                        '8px 12px',
-                      borderRadius:
-                        '12px',
-                      fontSize:
-                        '13px',
-                      lineHeight:
-                        '1.4',
-                      borderBottomRightRadius:
-                        isMe
-                          ? '2px'
-                          : '12px',
-                      borderBottomLeftRadius:
-                        isMe
-                          ? '12px'
-                          : '2px',
-                      boxShadow:
-                        '0 1px 2px rgba(0,0,0,0.05)',
-                      wordBreak:
-                        'break-word'
-                    }}
-                  >
-                    {msg.content}
-                  </div>
-
-                  <span
-                    style={{
-                      fontSize:
-                        '10px',
-                      color:
-                        '#94a3b8',
-                      marginTop:
-                        '2px',
-                      display:
-                        'block',
-                      textAlign:
-                        isMe
-                          ? 'right'
-                          : 'left'
-                    }}
-                  >
-                    {new Date(
-                      msg.created_at
-                    ).toLocaleTimeString(
-                      [],
-                      {
-                        hour:
-                          '2-digit',
-                        minute:
-                          '2-digit'
-                      }
-                    )}
-                  </span>
+                  {msg.content}
                 </div>
-              )
-            }
-          )
+
+                <span
+                  style={{
+                    fontSize: '10px',
+                    color: '#94a3b8',
+                    marginTop: '2px',
+                    display: 'block',
+                    textAlign:
+                      isMe
+                        ? 'right'
+                        : 'left'
+                  }}
+                >
+                  {new Date(
+                    msg.created_at
+                  ).toLocaleTimeString(
+                    [],
+                    {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    }
+                  )}
+                </span>
+              </div>
+            )
+          })
         )}
 
-        <div
-          ref={
-            messagesEndRef
-          }
-        />
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Formulaire d'envoi */}
       <form
-        onSubmit={
-          sendMessage
-        }
+        onSubmit={sendMessage}
         style={{
           padding: '10px',
           borderTop:
             '1px solid #e2e8f0',
           display: 'flex',
           gap: '8px',
-          backgroundColor:
-            'white'
+          backgroundColor: 'white'
         }}
       >
         <input
           type="text"
           placeholder="Votre message..."
-          value={
-            newMessage
-          }
+          value={newMessage}
           onChange={(e) =>
-            setNewMessage(
-              e.target.value
-            )
+            setNewMessage(e.target.value)
           }
           style={{
             flex: 1,
-            padding:
-              '8px 12px',
-            borderRadius:
-              '8px',
+            padding: '8px 12px',
+            borderRadius: '8px',
             border:
               '1px solid #cbd5e1',
             outline: 'none',
-            fontSize:
-              '13px',
-            backgroundColor:
-              '#ffffff'
+            fontSize: '13px',
+            backgroundColor: '#ffffff'
           }}
         />
 
         <button
           type="submit"
-          disabled={
-            !newMessage.trim()
-          }
+          disabled={!newMessage.trim()}
           style={{
-            backgroundColor:
-              '#2563eb',
+            backgroundColor: '#2563eb',
             color: 'white',
             border: 'none',
-            padding:
-              '8px 14px',
-            borderRadius:
-              '8px',
-            fontWeight:
-              '600',
-            fontSize:
-              '13px',
+            padding: '8px 14px',
+            borderRadius: '8px',
+            fontWeight: '600',
+            fontSize: '13px',
             cursor:
               newMessage.trim()
                 ? 'pointer'

@@ -27,10 +27,6 @@ export const metadata: Metadata = {
     'occasion Saint-Pierre-et-Miquelon',
     'achat vente SPM',
   ],
-  icons: {
-    icon: '/favicon.ico',
-    apple: '/favicon.ico',
-  },
   manifest: '/manifest.json',
   openGraph: {
     title: 'TrocTruc SPM - Petites annonces & covoiturage local',
