@@ -8,110 +8,175 @@ export async function POST(request: Request) {
   try {
     const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-    const vapidSubject = 'mailto:contact.troctruc@gmail.com';
+    const vapidSubject =
+      process.env.VAPID_SUBJECT ||
+      'mailto:contact.troctruc@gmail.com';
 
     if (!vapidPublicKey || !vapidPrivateKey) {
-      console.error("❌ Clés VAPID manquantes sur Vercel");
-      return NextResponse.json({ error: 'Clés VAPID manquantes' }, { status: 500 });
+      console.error('Clés VAPID manquantes');
+
+      return NextResponse.json(
+        { error: 'Clés VAPID manquantes' },
+        { status: 500 }
+      );
     }
 
-    webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+    webpush.setVapidDetails(
+      vapidSubject,
+      vapidPublicKey,
+      vapidPrivateKey
+    );
 
-    // Lecture propre du texte brut (Recommandé pour pg_net)
-    const rawText = await request.text();
-    console.log("📥 [DIAGNOSTIC] Contenu brut reçu de Supabase :", rawText);
+    const bodyData = await request.json();
 
-    let bodyData: any = {};
-    try {
-      bodyData = JSON.parse(rawText);
-    } catch (e) {
-      // Sécurité de parsing
+    const record =
+      bodyData?.record ||
+      bodyData?.new ||
+      bodyData?.data ||
+      bodyData;
+
+    const conversationId =
+      record?.conversation_id ||
+      record?.conversation ||
+      record?.conversationId;
+
+    const senderId =
+      record?.sender_id ||
+      record?.sender ||
+      record?.senderId;
+
+    if (!conversationId || !senderId) {
+      return NextResponse.json({
+        success: true,
+        message: 'conversationId ou senderId manquant',
+      });
     }
-    
-    const conversationId = bodyData?.conversation_id || bodyData?.record?.conversation_id || bodyData?.new?.conversation_id;
-    const senderId = bodyData?.sender_id || bodyData?.record?.sender_id || bodyData?.new?.sender_id;
-    const messageContent = bodyData?.content || bodyData?.record?.content || 'Vous avez reçu un nouveau message';
 
-    if (!conversationId) {
-      console.warn("⚠️ Webhook ignoré : Aucun champ conversation_id identifié.");
-      return NextResponse.json({ success: true, message: 'Données manquantes' });
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.SUPABASE_SECRET_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json(
+        { error: 'Variables Supabase serveur manquantes' },
+        { status: 500 }
+      );
     }
 
-    // ADRESSE UNIQUE DE VOTRE PROJET EN DUR
-    const supabaseUrl = "https://supabase.co";
-    
-    // CLÉ PUBLIQUE SÉCURISÉE (Autorisée par GitHub, lit les tables puisque RLS est désactivé)
-    const supabaseKey = "sb_publishable_IkgerRQwVuFEgUvTE6ezgA_UJxG3TDu74HRE_vVfFms=";
+    const supabase = createClient(
+      supabaseUrl,
+      supabaseKey,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      }
+    );
 
-    // CONFIGURATION SANS PROXY : On coupe tous les intermédiaires de cache qui renvoient du HTML
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: { 
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false
-      },
-      global: {
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      },
-      db: { schema: 'public' }
-    });
-
-    // 1. Trouver la conversation
-    const { data: conversation, error: convError } = await supabase
-      .from('conversations')
-      .select('buyer_id, seller_id')
-      .eq('id', conversationId)
-      .single();
+    const { data: conversation, error: convError } =
+      await supabase
+        .from('conversations')
+        .select('buyer_id, seller_id')
+        .eq('id', conversationId)
+        .single();
 
     if (convError || !conversation) {
-      console.error(`❌ Échec de lecture de la conversation ID ${conversationId} :`, convError?.message || JSON.stringify(convError));
-      return NextResponse.json({ success: true, warning: 'Ligne introuvable ou problème réseau' });
+      console.error('Conversation introuvable', convError);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Conversation introuvable',
+      });
     }
 
-    // 2. Déterminer le destinataire
-    const recipientId = conversation.buyer_id === senderId ? conversation.seller_id : conversation.buyer_id;
-    if (!recipientId) return NextResponse.json({ success: true, message: 'Pas de destinataire' });
+    let recipientId: string | null = null;
 
-    console.log(`👤 Connexion validée ! Destinataire identifié : ${recipientId}`);
+    if (senderId === conversation.buyer_id) {
+      recipientId = conversation.seller_id;
+    } else if (senderId === conversation.seller_id) {
+      recipientId = conversation.buyer_id;
+    } else {
+      return NextResponse.json({
+        success: true,
+        message: 'Expéditeur incohérent',
+      });
+    }
 
-    // 3. Chercher l'abonnement push
-    const { data: subs, error: subError } = await supabase
-      .from('push_subscriptions')
-      .select('id, subscription')
-      .eq('user_id', recipientId);
+    const { data: subs, error: subError } =
+      await supabase
+        .from('push_subscriptions')
+        .select('id, subscription')
+        .eq('user_id', recipientId);
 
-    if (subError || !subs || subs.length === 0) {
-      console.log(`ℹ️ Aucun abonnement actif en base de données pour ${recipientId}`);
-      return NextResponse.json({ success: true, message: 'Aucun jeton enregistré' });
+    if (subError) {
+      console.error('Erreur abonnements push', subError);
+
+      return NextResponse.json(
+        { error: 'Erreur abonnements push' },
+        { status: 500 }
+      );
+    }
+
+    if (!subs || subs.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'Aucun appareil abonné',
+      });
     }
 
     const payload = JSON.stringify({
-      title: 'Nouveau message sur TrocTruc SPM',
-      body: messageContent,
-      url: '/messages'
+      title: 'TrocTruc SPM',
+      body: 'Vous avez reçu un nouveau message',
+      url: `/messages?conversation=${conversationId}`,
+      conversationId,
     });
 
-    // 4. Distribution des pushs
     await Promise.all(
       subs.map(async (row) => {
         try {
-          const subObj = typeof row.subscription === 'string' ? JSON.parse(row.subscription) : row.subscription;
-          await webpush.sendNotification(subObj, payload);
-          console.log(`✅ Notification push transmise au terminal ID : ${row.id}`);
+          const subscription =
+            typeof row.subscription === 'string'
+              ? JSON.parse(row.subscription)
+              : row.subscription;
+
+          await webpush.sendNotification(
+            subscription,
+            payload
+          );
         } catch (err: any) {
-          if (err.statusCode === 410 || err.statusCode === 404) {
-            await supabase.from('push_subscriptions').delete().eq('id', row.id);
+          console.error(
+            'Erreur push :',
+            err?.message
+          );
+
+          if (
+            err?.statusCode === 404 ||
+            err?.statusCode === 410
+          ) {
+            await supabase
+              .from('push_subscriptions')
+              .delete()
+              .eq('id', row.id);
           }
         }
       })
     );
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      recipientId,
+      devices: subs.length,
+    });
   } catch (err: any) {
-    console.error('💥 Erreur critique script :', err.message);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('Erreur send-push :', err);
+
+    return NextResponse.json(
+      { error: err?.message || 'Erreur serveur' },
+      { status: 500 }
+    );
   }
 }
