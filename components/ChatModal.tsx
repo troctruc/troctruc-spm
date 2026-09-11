@@ -560,23 +560,27 @@ export default function ChatModal({
         bottom: '16px',
         right: '16px',
         width:
-          'min(380px, calc(100vw - 24px))',
-        height: '500px',
+          'min(405px, calc(100vw - 24px))',
+        height:
+          '520px',
         maxHeight:
           'calc(100vh - 32px)',
         backgroundColor:
           '#ffffff',
         borderRadius:
-          '10px',
-        display: 'flex',
+          '14px',
+        display:
+          'flex',
         flexDirection:
           'column',
-        overflow: 'hidden',
+        overflow:
+          'hidden',
         boxShadow:
-          '0 18px 45px rgba(15, 23, 42, 0.18)',
-        zIndex: 2000,
+          '0 18px 50px rgba(15, 23, 42, 0.17)',
+        zIndex:
+          2000,
         border:
-          '1px solid #d8dee6',
+          '1px solid #dfe3e6',
         fontFamily:
           'system-ui, -apple-system, sans-serif'
       }}
@@ -585,18 +589,17 @@ export default function ChatModal({
       <div
         style={{
           backgroundColor:
-            '#f3f4f6',
-          color:
-            '#24313f',
+            '#f5f6f7',
           padding:
-            '11px 12px',
-          display: 'flex',
+            '13px 14px',
+          display:
+            'flex',
           justifyContent:
             'space-between',
           alignItems:
             'center',
           borderBottom:
-            '1px solid #dde2e7'
+            '1px solid #e2e5e8'
         }}
       >
         <div
@@ -607,11 +610,14 @@ export default function ChatModal({
             )
           }
           style={{
-            display: 'flex',
+            display:
+              'flex',
             alignItems:
               'center',
-            gap: '10px',
-            minWidth: 0,
+            gap:
+              '10px',
+            minWidth:
+              0,
             cursor:
               otherUser?.id
                 ? 'pointer'
@@ -619,27 +625,32 @@ export default function ChatModal({
           }}
           title={
             otherUser?.id
-              ? 'Cliquer pour voir le profil'
+              ? 'Voir le profil'
               : ''
           }
         >
           <div
             style={{
-              width: '34px',
-              height: '34px',
+              width:
+                '38px',
+              height:
+                '38px',
               borderRadius:
-                '8px',
+                '10px',
               backgroundColor:
                 '#ffffff',
-              display: 'flex',
+              display:
+                'flex',
               alignItems:
                 'center',
               justifyContent:
                 'center',
-              overflow: 'hidden',
-              flexShrink: 0,
+              overflow:
+                'hidden',
+              flexShrink:
+                0,
               border:
-                '1px solid #d2d8de'
+                '1px solid #d7dce0'
             }}
           >
             {otherUser?.avatar_url ? (
@@ -649,8 +660,10 @@ export default function ChatModal({
                 }
                 alt="Avatar"
                 style={{
-                  width: '100%',
-                  height: '100%',
+                  width:
+                    '100%',
+                  height:
+                    '100%',
                   objectFit:
                     'cover'
                 }}
@@ -659,7 +672,7 @@ export default function ChatModal({
               <span
                 style={{
                   fontSize:
-                    '15px'
+                    '16px'
                 }}
               >
                 👤
@@ -667,28 +680,51 @@ export default function ChatModal({
             )}
           </div>
 
-          <h3
+          <div
             style={{
-              margin: 0,
-              fontSize:
-                '14px',
-              fontWeight:
-                '700',
-              color:
-                '#25313d',
-              whiteSpace:
-                'nowrap',
-              overflow:
-                'hidden',
-              textOverflow:
-                'ellipsis',
-              maxWidth:
-                '230px'
+              minWidth:
+                0
             }}
           >
-            {otherUser?.pseudo ||
-              'Discussion'}
-          </h3>
+            <h3
+              style={{
+                margin:
+                  0,
+                fontSize:
+                  '14px',
+                fontWeight:
+                  '700',
+                color:
+                  '#24313f',
+                whiteSpace:
+                  'nowrap',
+                overflow:
+                  'hidden',
+                textOverflow:
+                  'ellipsis',
+                maxWidth:
+                  '255px'
+              }}
+            >
+              {otherUser?.pseudo ||
+                'Discussion'}
+            </h3>
+
+            <span
+              style={{
+                display:
+                  'block',
+                marginTop:
+                  '2px',
+                fontSize:
+                  '10px',
+                color:
+                  '#87919a'
+              }}
+            >
+              Messagerie TrocTruc
+            </span>
+          </div>
         </div>
 
         <button
@@ -696,80 +732,141 @@ export default function ChatModal({
           aria-label="Fermer la conversation"
           style={{
             background:
-              '#ffffff',
+              'transparent',
             border:
-              '1px solid #d8dde2',
+              '1px solid #d9dde1',
             color:
-              '#65717c',
-            fontSize:
-              '15px',
-            cursor:
-              'pointer',
+              '#66727d',
             width:
               '30px',
             height:
               '30px',
             borderRadius:
-              '7px',
+              '8px',
+            fontSize:
+              '14px',
+            cursor:
+              'pointer',
             display:
               'flex',
             alignItems:
               'center',
             justifyContent:
               'center',
-            padding: 0,
-            flexShrink: 0
+            padding:
+              0,
+            flexShrink:
+              0
           }}
         >
           ✕
         </button>
       </div>
 
-      {/* TITRE DE L'ANNONCE */}
+      {/* CARTE ANNONCE */}
       <div
         style={{
           padding:
-            '9px 13px',
+            '10px 12px',
           backgroundColor:
-            '#fafafa',
+            '#ffffff',
           borderBottom:
-            '1px solid #e6e9ec'
+            '1px solid #e7eaed'
         }}
       >
         <div
           style={{
-            fontSize:
-              '10px',
-            color:
-              '#8a949e',
-            marginBottom:
-              '2px'
+            display:
+              'flex',
+            alignItems:
+              'center',
+            gap:
+              '9px',
+            padding:
+              '8px 10px',
+            backgroundColor:
+              '#f8faf9',
+            border:
+              '1px solid #e4e9e6',
+            borderRadius:
+              '9px'
           }}
         >
-          Annonce
-        </div>
+          <div
+            style={{
+              width:
+                '30px',
+              height:
+                '30px',
+              borderRadius:
+                '7px',
+              backgroundColor:
+                '#eef3f1',
+              display:
+                'flex',
+              alignItems:
+                'center',
+              justifyContent:
+                'center',
+              flexShrink:
+                0,
+              fontSize:
+                '15px'
+            }}
+          >
+            🏷️
+          </div>
 
-        <div
-          style={{
-            fontSize:
-              '12px',
-            fontWeight:
-              '700',
-            color:
-              '#35414d',
-            whiteSpace:
-              'nowrap',
-            overflow:
-              'hidden',
-            textOverflow:
-              'ellipsis'
-          }}
-        >
-          {annonceTitle}
+          <div
+            style={{
+              minWidth:
+                0,
+              flex:
+                1
+            }}
+          >
+            <div
+              style={{
+                fontSize:
+                  '9px',
+                color:
+                  '#87928b',
+                textTransform:
+                  'uppercase',
+                letterSpacing:
+                  '0.4px',
+                marginBottom:
+                  '2px',
+                fontWeight:
+                  '700'
+              }}
+            >
+              Annonce
+            </div>
+
+            <div
+              style={{
+                fontSize:
+                  '12px',
+                color:
+                  '#34413b',
+                fontWeight:
+                  '700',
+                whiteSpace:
+                  'nowrap',
+                overflow:
+                  'hidden',
+                textOverflow:
+                  'ellipsis'
+              }}
+            >
+              {annonceTitle}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* MESSAGE UTILISATEUR BLOQUÉ */}
+      {/* UTILISATEUR BLOQUÉ */}
       {isBlocked && (
         <div
           style={{
@@ -789,16 +886,17 @@ export default function ChatModal({
               '600'
           }}
         >
-          🚫 Utilisateur bloqué — historique consultable, envoi désactivé
+          🚫 Utilisateur bloqué — historique consultable
         </div>
       )}
 
       {/* MESSAGES */}
       <div
         style={{
-          flex: 1,
+          flex:
+            1,
           padding:
-            '16px 14px',
+            '17px 14px',
           overflowY:
             'auto',
           display:
@@ -806,7 +904,7 @@ export default function ChatModal({
           flexDirection:
             'column',
           gap:
-            '12px',
+            '13px',
           backgroundColor:
             '#fbfbfa'
         }}
@@ -817,9 +915,9 @@ export default function ChatModal({
               textAlign:
                 'center',
               color:
-                '#8a949d',
+                '#8d969e',
               fontSize:
-                '13px',
+                '12px',
               marginTop:
                 '20px'
             }}
@@ -832,9 +930,9 @@ export default function ChatModal({
               textAlign:
                 'center',
               margin:
-                '28px auto 0',
+                '32px auto 0',
               maxWidth:
-                '250px',
+                '260px',
               color:
                 '#76818a'
             }}
@@ -852,7 +950,8 @@ export default function ChatModal({
 
             <p
               style={{
-                margin: 0,
+                margin:
+                  0,
                 fontSize:
                   '13px',
                 lineHeight:
@@ -893,16 +992,14 @@ export default function ChatModal({
                         fontSize:
                           '10px',
                         color:
-                          '#7b8790',
+                          '#7a848d',
                         marginBottom:
                           '4px',
                         fontWeight:
                           '600'
                       }}
                     >
-                      {
-                        otherUser.pseudo
-                      }
+                      {otherUser.pseudo}
                     </span>
                   )}
 
@@ -910,10 +1007,10 @@ export default function ChatModal({
                   style={{
                     backgroundColor:
                       isMe
-                        ? '#e7f0ed'
+                        ? '#edf4f1'
                         : '#ffffff',
                     color:
-                      '#26323d',
+                      '#27323b',
                     padding:
                       '9px 11px',
                     borderRadius:
@@ -924,10 +1021,10 @@ export default function ChatModal({
                       '1.45',
                     border:
                       isMe
-                        ? '1px solid #c7d9d4'
-                        : '1px solid #dfe4e8',
+                        ? '1px solid #d0ded8'
+                        : '1px solid #e0e4e7',
                     boxShadow:
-                      '0 1px 2px rgba(15, 23, 42, 0.04)',
+                      '0 1px 2px rgba(15, 23, 42, 0.03)',
                     wordBreak:
                       'break-word'
                   }}
@@ -940,7 +1037,7 @@ export default function ChatModal({
                     fontSize:
                       '9px',
                     color:
-                      '#8b949d',
+                      '#9aa2a8',
                     marginTop:
                       '3px',
                     display:
@@ -985,9 +1082,9 @@ export default function ChatModal({
         onSubmit={sendMessage}
         style={{
           padding:
-            '10px',
+            '11px',
           borderTop:
-            '1px solid #e1e5e9',
+            '1px solid #e2e5e8',
           display:
             'flex',
           gap:
@@ -1011,13 +1108,14 @@ export default function ChatModal({
             )
           }
           style={{
-            flex: 1,
+            flex:
+              1,
             padding:
-              '9px 11px',
+              '10px 11px',
             borderRadius:
-              '7px',
+              '8px',
             border:
-              '1px solid #cfd6dc',
+              '1px solid #d1d7dc',
             outline:
               'none',
             fontSize:
@@ -1043,15 +1141,15 @@ export default function ChatModal({
           }
           style={{
             backgroundColor:
-              '#2f6b5f',
+              '#356f63',
             color:
-              'white',
+              '#ffffff',
             border:
               'none',
             padding:
-              '9px 13px',
+              '9px 14px',
             borderRadius:
-              '7px',
+              '8px',
             fontWeight:
               '700',
             fontSize:
