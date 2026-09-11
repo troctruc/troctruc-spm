@@ -44,9 +44,55 @@ export default function ConversationsPage() {
   ] =
     useState(false)
 
+  const [
+    actionMenuId,
+    setActionMenuId
+  ] =
+    useState<string | null>(null)
+
   useEffect(() => {
     fetchData()
   }, [])
+
+  function formatMessageTime(
+    dateValue: string | null | undefined
+  ) {
+    if (!dateValue) return ''
+
+    const date = new Date(dateValue)
+
+    const now = new Date()
+
+    const sameDay =
+      date.getFullYear() ===
+        now.getFullYear() &&
+      date.getMonth() ===
+        now.getMonth() &&
+      date.getDate() ===
+        now.getDate()
+
+    if (sameDay) {
+      return date.toLocaleTimeString(
+        [],
+        {
+          hour:
+            '2-digit',
+          minute:
+            '2-digit'
+        }
+      )
+    }
+
+    return date.toLocaleDateString(
+      'fr-FR',
+      {
+        day:
+          '2-digit',
+        month:
+          '2-digit'
+      }
+    )
+  }
 
   async function fetchData() {
     setLoading(true)
@@ -133,7 +179,7 @@ export default function ConversationsPage() {
                   : conv.seller_id
 
               /*
-               * PROFIL DE L'AUTRE UTILISATEUR
+               * PROFIL
                */
               const {
                 data: profileData
@@ -149,7 +195,7 @@ export default function ConversationsPage() {
                 .maybeSingle()
 
               /*
-               * ANNONCE ASSOCIÉE
+               * ANNONCE
                */
               const {
                 data: annonceData
@@ -231,7 +277,8 @@ export default function ConversationsPage() {
 
                 otherUser:
                   profileData || {
-                    id: otherId,
+                    id:
+                      otherId,
                     pseudo:
                       'Membre TrocTruc',
                     avatar_url:
@@ -256,15 +303,17 @@ export default function ConversationsPage() {
                 lastMessage:
                   lastMessageData
                     ?.content ||
+                  null,
+
+                lastMessageSenderId:
+                  lastMessageData
+                    ?.sender_id ||
                   null
               }
             }
           )
         )
 
-      /*
-       * TRI PAR DERNIER MESSAGE
-       */
       const sorted = [
         ...enrichedConversations
       ].sort(
@@ -285,18 +334,20 @@ export default function ConversationsPage() {
     setLoading(false)
   }
 
-  /*
-   * OUVRIR UNE DISCUSSION
-   */
   async function handleOpenConversation(
     annonce: any,
     convId: string,
     otherUserId: string,
     isBlocked: boolean
   ) {
+    setActionMenuId(
+      null
+    )
+
     setActiveAnnonce(
       annonce || {
-        id: 'inconnue',
+        id:
+          'inconnue',
         titre:
           'Annonce introuvable'
       }
@@ -315,14 +366,15 @@ export default function ConversationsPage() {
     )
   }
 
-  /*
-   * SUPPRIMER UNE DISCUSSION
-   */
   async function handleDeleteConversation(
     e: React.MouseEvent,
     conversationId: string
   ) {
     e.stopPropagation()
+
+    setActionMenuId(
+      null
+    )
 
     if (
       !confirm(
@@ -360,13 +412,18 @@ export default function ConversationsPage() {
         activeConversationId ===
         conversationId
       ) {
-        setActiveAnnonce(null)
+        setActiveAnnonce(
+          null
+        )
+
         setActiveConversationId(
           null
         )
+
         setActiveOtherUserId(
           null
         )
+
         setActiveConversationBlocked(
           false
         )
@@ -374,14 +431,15 @@ export default function ConversationsPage() {
     }
   }
 
-  /*
-   * BLOQUER
-   */
   async function handleBlockUser(
     e: React.MouseEvent,
     userIdToBlock: string
   ) {
     e.stopPropagation()
+
+    setActionMenuId(
+      null
+    )
 
     if (
       !confirm(
@@ -414,7 +472,9 @@ export default function ConversationsPage() {
         'Utilisateur bloqué avec succès.'
       )
 
-      setActiveAnnonce(null)
+      setActiveAnnonce(
+        null
+      )
 
       setActiveConversationId(
         null
@@ -432,9 +492,6 @@ export default function ConversationsPage() {
     }
   }
 
-  /*
-   * DÉBLOQUER
-   */
   async function handleUnblockUser(
     blockId: string
   ) {
@@ -704,7 +761,7 @@ export default function ConversationsPage() {
           'sans-serif'
       }}
     >
-      {/* HEADER PAGE */}
+      {/* HEADER */}
       <div
         style={{
           display:
@@ -816,12 +873,12 @@ export default function ConversationsPage() {
             backgroundColor:
               activeTab ===
               'conversations'
-                ? '#2ecc71'
+                ? '#356f63'
                 : '#e2e8f0',
             color:
               activeTab ===
               'conversations'
-                ? 'white'
+                ? '#ffffff'
                 : '#475569'
           }}
         >
@@ -863,7 +920,7 @@ export default function ConversationsPage() {
         </button>
       </div>
 
-      {/* LISTE DES DISCUSSIONS */}
+      {/* DISCUSSIONS */}
       {activeTab ===
         'conversations' && (
         <div
@@ -924,6 +981,19 @@ export default function ConversationsPage() {
                   const isBlocked =
                     conv.isBlocked
 
+                  const lastMessageText =
+                    conv.lastMessage
+                      ? `${
+                          conv.lastMessageSenderId ===
+                          currentUser.id
+                            ? 'Vous : '
+                            : ''
+                        }${conv.lastMessage}`
+                      : `Avec ${
+                          otherUser.pseudo ||
+                          'Membre TrocTruc'
+                        }`
+
                   return (
                     <li
                       key={
@@ -931,7 +1001,7 @@ export default function ConversationsPage() {
                       }
                       style={{
                         marginBottom:
-                          '12px'
+                          '10px'
                       }}
                     >
                       <div
@@ -948,176 +1018,163 @@ export default function ConversationsPage() {
                             'flex',
                           alignItems:
                             'center',
-                          justifyContent:
-                            'space-between',
+                          gap:
+                            '12px',
                           padding:
-                            '14px 18px',
+                            '12px 14px',
                           backgroundColor:
                             isBlocked
                               ? '#fff7ed'
-                              : isUnread
-                                ? '#f0fdf4'
-                                : '#ffffff',
+                              : '#ffffff',
                           border:
                             isBlocked
                               ? '1px solid #fed7aa'
                               : isUnread
-                                ? '1.5px solid #22c55e'
-                                : '1px solid #e2e8f0',
+                                ? '1px solid #c8ddd7'
+                                : '1px solid #e3e7eb',
                           borderRadius:
-                            '10px',
+                            '11px',
                           cursor:
                             'pointer',
                           boxShadow:
-                            isUnread &&
-                            !isBlocked
-                              ? '0 3px 8px rgba(34, 197, 94, 0.12)'
-                              : '0 1px 3px rgba(0,0,0,0.04)',
+                            '0 1px 3px rgba(15,23,42,0.04)',
                           transition:
-                            'all 0.15s ease-in-out'
+                            'all 0.15s ease',
+                          position:
+                            'relative'
                         }}
                       >
+                        {/* AVATAR */}
                         <div
                           style={{
-                            display:
-                              'flex',
-                            alignItems:
-                              'center',
-                            gap:
-                              '15px',
-                            flex:
-                              1,
-                            minWidth:
-                              0
+                            width:
+                              '44px',
+                            height:
+                              '44px',
+                            borderRadius:
+                              '50%',
+                            overflow:
+                              'visible',
+                            flexShrink:
+                              0,
+                            position:
+                              'relative'
                           }}
                         >
-                          {/* AVATAR */}
                           <div
                             style={{
                               width:
-                                '48px',
+                                '44px',
                               height:
-                                '48px',
+                                '44px',
                               borderRadius:
                                 '50%',
-                              backgroundColor:
-                                '#f1f5f9',
+                              overflow:
+                                'hidden',
                               display:
                                 'flex',
                               alignItems:
                                 'center',
                               justifyContent:
                                 'center',
-                              flexShrink:
-                                0,
+                              backgroundColor:
+                                '#eef2f4',
                               border:
-                                isUnread
-                                  ? '2px solid #86efac'
-                                  : '1px solid #dbe2e8',
-                              position:
-                                'relative',
-                              overflow:
-                                'visible'
+                                '1px solid #d8dee3'
                             }}
                           >
-                            <div
-                              style={{
-                                width:
-                                  '100%',
-                                height:
-                                  '100%',
-                                borderRadius:
-                                  '50%',
-                                overflow:
-                                  'hidden',
-                                display:
-                                  'flex',
-                                alignItems:
-                                  'center',
-                                justifyContent:
-                                  'center',
-                                backgroundColor:
-                                  '#f1f5f9'
-                              }}
-                            >
-                              {otherUser.avatar_url ? (
-                                <img
-                                  src={
-                                    otherUser.avatar_url
-                                  }
-                                  alt={
-                                    otherUser.pseudo ||
-                                    'Avatar'
-                                  }
-                                  style={{
-                                    width:
-                                      '100%',
-                                    height:
-                                      '100%',
-                                    objectFit:
-                                      'cover'
-                                  }}
-                                />
-                              ) : (
-                                <span
-                                  style={{
-                                    fontSize:
-                                      '20px',
-                                    color:
-                                      '#64748b'
-                                  }}
-                                >
-                                  👤
-                                </span>
-                              )}
-                            </div>
-
-                            {isUnread &&
-                              !isBlocked && (
-                                <span
-                                  style={{
-                                    position:
-                                      'absolute',
-                                    top:
-                                      '-2px',
-                                    right:
-                                      '-2px',
-                                    width:
-                                      '11px',
-                                    height:
-                                      '11px',
-                                    backgroundColor:
-                                      '#22c55e',
-                                    borderRadius:
-                                      '50%',
-                                    border:
-                                      '2px solid white'
-                                  }}
-                                />
-                              )}
+                            {otherUser.avatar_url ? (
+                              <img
+                                src={
+                                  otherUser.avatar_url
+                                }
+                                alt={
+                                  otherUser.pseudo ||
+                                  'Avatar'
+                                }
+                                style={{
+                                  width:
+                                    '100%',
+                                  height:
+                                    '100%',
+                                  objectFit:
+                                    'cover'
+                                }}
+                              />
+                            ) : (
+                              <span
+                                style={{
+                                  fontSize:
+                                    '19px',
+                                  color:
+                                    '#64748b'
+                                }}
+                              >
+                                👤
+                              </span>
+                            )}
                           </div>
 
-                          {/* TEXTE */}
+                          {isUnread &&
+                            !isBlocked && (
+                              <span
+                                style={{
+                                  position:
+                                    'absolute',
+                                  bottom:
+                                    '-1px',
+                                  right:
+                                    '-1px',
+                                  width:
+                                    '11px',
+                                  height:
+                                    '11px',
+                                  borderRadius:
+                                    '50%',
+                                  backgroundColor:
+                                    '#356f63',
+                                  border:
+                                    '2px solid #ffffff'
+                                }}
+                              />
+                            )}
+                        </div>
+
+                        {/* CONTENU */}
+                        <div
+                          style={{
+                            flex:
+                              1,
+                            minWidth:
+                              0
+                          }}
+                        >
                           <div
                             style={{
-                              minWidth:
-                                0,
-                              flex:
-                                1
+                              display:
+                                'flex',
+                              justifyContent:
+                                'space-between',
+                              alignItems:
+                                'center',
+                              gap:
+                                '10px',
+                              marginBottom:
+                                '3px'
                             }}
                           >
                             <h3
                               style={{
                                 margin:
-                                  '0 0 4px 0',
+                                  0,
                                 fontSize:
-                                  '15px',
+                                  '14px',
                                 color:
-                                  '#334155',
+                                  '#263544',
                                 fontWeight:
                                   isUnread
                                     ? '800'
-                                    : '700',
+                                    : '650',
                                 whiteSpace:
                                   'nowrap',
                                 overflow:
@@ -1133,109 +1190,246 @@ export default function ConversationsPage() {
 
                             <span
                               style={{
+                                fontSize:
+                                  '10px',
+                                color:
+                                  isUnread
+                                    ? '#356f63'
+                                    : '#98a2ab',
+                                fontWeight:
+                                  isUnread
+                                    ? '700'
+                                    : '500',
+                                whiteSpace:
+                                  'nowrap',
+                                flexShrink:
+                                  0
+                              }}
+                            >
+                              {formatMessageTime(
+                                conv.lastMessageAt
+                              )}
+                            </span>
+                          </div>
+
+                          <div
+                            style={{
+                              display:
+                                'flex',
+                              alignItems:
+                                'center',
+                              gap:
+                                '6px',
+                              minWidth:
+                                0
+                            }}
+                          >
+                            {isUnread &&
+                              !isBlocked && (
+                                <span
+                                  style={{
+                                    width:
+                                      '6px',
+                                    height:
+                                      '6px',
+                                    borderRadius:
+                                      '50%',
+                                    backgroundColor:
+                                      '#356f63',
+                                    flexShrink:
+                                      0
+                                  }}
+                                />
+                              )}
+
+                            <span
+                              style={{
                                 display:
                                   'block',
+                                minWidth:
+                                  0,
+                                overflow:
+                                  'hidden',
+                                whiteSpace:
+                                  'nowrap',
+                                textOverflow:
+                                  'ellipsis',
                                 fontSize:
                                   '12px',
                                 color:
                                   isBlocked
                                     ? '#c2410c'
                                     : isUnread
-                                      ? '#16a34a'
-                                      : '#7c8a99',
+                                      ? '#43574f'
+                                      : '#82909c',
                                 fontWeight:
-                                  isBlocked ||
                                   isUnread
-                                    ? '700'
-                                    : '500',
-                                whiteSpace:
-                                  'nowrap',
-                                overflow:
-                                  'hidden',
-                                textOverflow:
-                                  'ellipsis'
+                                    ? '600'
+                                    : '400'
                               }}
                             >
                               {isBlocked
-                                ? `🚫 ${otherUser.pseudo || 'Utilisateur bloqué'}`
-                                : isUnread
-                                  ? conv.unreadCount > 1
-                                    ? `${conv.unreadCount} nouveaux messages · ${otherUser.pseudo || 'Membre TrocTruc'}`
-                                    : `Nouveau message · ${otherUser.pseudo || 'Membre TrocTruc'}`
-                                  : `Avec ${otherUser.pseudo || 'Membre TrocTruc'}`}
+                                ? `Utilisateur bloqué · ${
+                                    otherUser.pseudo ||
+                                    'Membre TrocTruc'
+                                  }`
+                                : lastMessageText}
                             </span>
                           </div>
                         </div>
 
-                        {/* ACTIONS */}
+                        {/* MENU */}
                         <div
                           style={{
-                            display:
-                              'flex',
-                            alignItems:
+                            position:
+                              'relative',
+                            alignSelf:
                               'center',
-                            gap:
-                              '4px',
-                            marginLeft:
-                              '12px'
+                            flexShrink:
+                              0
                           }}
                         >
                           <button
-                            onClick={(
-                              e
-                            ) =>
-                              handleDeleteConversation(
-                                e,
-                                conv.id
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+
+                              setActionMenuId(
+                                actionMenuId ===
+                                  conv.id
+                                  ? null
+                                  : conv.id
                               )
-                            }
-                            title="Supprimer la discussion"
+                            }}
+                            aria-label="Options de la conversation"
                             style={{
-                              background:
-                                'none',
+                              width:
+                                '30px',
+                              height:
+                                '30px',
+                              borderRadius:
+                                '8px',
                               border:
                                 'none',
+                              backgroundColor:
+                                actionMenuId ===
+                                conv.id
+                                  ? '#eef2f4'
+                                  : 'transparent',
+                              color:
+                                '#64748b',
                               cursor:
                                 'pointer',
                               fontSize:
-                                '17px',
-                              padding:
-                                '6px',
-                              opacity:
-                                0.72
+                                '20px',
+                              lineHeight:
+                                '20px',
+                              display:
+                                'flex',
+                              alignItems:
+                                'center',
+                              justifyContent:
+                                'center'
                             }}
                           >
-                            🗑️
+                            ⋯
                           </button>
 
-                          {!isBlocked && (
-                            <button
-                              onClick={(
-                                e
-                              ) =>
-                                handleBlockUser(
-                                  e,
-                                  otherUserId
-                                )
+                          {actionMenuId ===
+                            conv.id && (
+                            <div
+                              onClick={(e) =>
+                                e.stopPropagation()
                               }
-                              title="Bloquer l'utilisateur"
                               style={{
-                                background:
-                                  'none',
+                                position:
+                                  'absolute',
+                                top:
+                                  '34px',
+                                right:
+                                  0,
+                                width:
+                                  '145px',
+                                backgroundColor:
+                                  '#ffffff',
                                 border:
-                                  'none',
-                                cursor:
-                                  'pointer',
-                                fontSize:
-                                  '17px',
+                                  '1px solid #dfe4e8',
+                                borderRadius:
+                                  '9px',
+                                boxShadow:
+                                  '0 8px 24px rgba(15,23,42,0.12)',
                                 padding:
-                                  '6px',
-                                opacity:
-                                  0.72
+                                  '5px',
+                                zIndex:
+                                  20
                               }}
                             >
-                              🚫
-                            </button>
+                              <button
+                                type="button"
+                                onClick={(e) =>
+                                  handleDeleteConversation(
+                                    e,
+                                    conv.id
+                                  )
+                                }
+                                style={{
+                                  width:
+                                    '100%',
+                                  border:
+                                    'none',
+                                  backgroundColor:
+                                    'transparent',
+                                  textAlign:
+                                    'left',
+                                  padding:
+                                    '8px 9px',
+                                  borderRadius:
+                                    '6px',
+                                  cursor:
+                                    'pointer',
+                                  color:
+                                    '#475569',
+                                  fontSize:
+                                    '12px'
+                                }}
+                              >
+                                🗑️ Supprimer
+                              </button>
+
+                              {!isBlocked && (
+                                <button
+                                  type="button"
+                                  onClick={(e) =>
+                                    handleBlockUser(
+                                      e,
+                                      otherUserId
+                                    )
+                                  }
+                                  style={{
+                                    width:
+                                      '100%',
+                                    border:
+                                      'none',
+                                    backgroundColor:
+                                      'transparent',
+                                    textAlign:
+                                      'left',
+                                    padding:
+                                      '8px 9px',
+                                    borderRadius:
+                                      '6px',
+                                    cursor:
+                                      'pointer',
+                                    color:
+                                      '#b42318',
+                                    fontSize:
+                                      '12px'
+                                  }}
+                                >
+                                  🚫 Bloquer
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
