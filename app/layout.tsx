@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   },
 
   description:
-    "Achetez, vendez, donnez et échangez localement à Saint-Pierre-et-Miquelon. Petites annonces et covoiturage à Saint-Pierre, Miquelon et Langlade.",
+    "Achetez, vendez, donnez et échangez à Saint-Pierre-et-Miquelon. Petites annonces locales, véhicules, maison, services, immobilier et covoiturage à Saint-Pierre, Miquelon et Langlade.",
 
   keywords: [
     'Saint-Pierre-et-Miquelon',
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Petites annonces à Saint-Pierre-et-Miquelon | TrocTruc SPM',
     description:
-      "Achetez, vendez, donnez et échangez localement à Saint-Pierre-et-Miquelon.",
+      "Achetez, vendez, donnez et échangez à Saint-Pierre-et-Miquelon. Petites annonces locales, véhicules, maison, services, immobilier et covoiturage à Saint-Pierre, Miquelon et Langlade.",
     url: 'https://troctruc-spm.com',
     siteName: 'TrocTruc SPM',
     locale: 'fr_FR',
