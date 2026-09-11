@@ -113,9 +113,6 @@ export default function ChatModal({
       setLoading(true)
 
       try {
-        /*
-         * TITRE DE L'ANNONCE
-         */
         if (annonceId) {
           const {
             data: annonceData
@@ -141,9 +138,6 @@ export default function ChatModal({
         let activeConvId = initialConvId
         let interlocutorId: string | null = null
 
-        /*
-         * RECHERCHE OU CRÉATION
-         */
         if (!activeConvId && annonceId) {
           const {
             data: existingConvs,
@@ -245,9 +239,6 @@ export default function ChatModal({
             sellerId
         }
 
-        /*
-         * PROFIL
-         */
         if (
           interlocutorId &&
           isMounted
@@ -276,9 +267,6 @@ export default function ChatModal({
           }
         }
 
-        /*
-         * MESSAGES
-         */
         if (
           activeConvId &&
           isMounted
@@ -341,9 +329,6 @@ export default function ChatModal({
     initialConvId
   ])
 
-  /*
-   * TEMPS RÉEL
-   */
   useEffect(() => {
     if (!conversationId) return
 
@@ -502,9 +487,6 @@ export default function ChatModal({
       })
     }
 
-    /*
-     * PUSH
-     */
     try {
       const pushResponse =
         await fetch(
@@ -736,7 +718,7 @@ export default function ChatModal({
         </button>
       </div>
 
-      {/* LIEN VERS L'ANNONCE */}
+      {/* TITRE DE L'ANNONCE */}
       <button
         type="button"
         onClick={() =>
@@ -761,19 +743,6 @@ export default function ChatModal({
             '100%'
         }}
       >
-        <span
-          style={{
-            display:
-              'inline',
-            fontSize:
-              '11px',
-            color:
-              '#7b858e'
-          }}
-        >
-          À propos de :{' '}
-        </span>
-
         <span
           style={{
             fontSize:
