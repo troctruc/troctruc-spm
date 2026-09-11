@@ -6,10 +6,9 @@ export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [showBanner, setShowBanner] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
-    // Vérifie si TrocTruc est actuellement ouvert
-    // comme application installée.
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true
@@ -21,21 +20,27 @@ export default function InstallPrompt() {
 
     const userAgent = window.navigator.userAgent.toLowerCase()
 
-    const isIosDevice =
-      /iphone|ipad|ipod/.test(userAgent)
+    const iosDevice = /iphone|ipad|ipod/.test(userAgent)
+    const mobileDevice =
+      /android|iphone|ipad|ipod|mobile/.test(userAgent)
 
-    setIsIOS(isIosDevice)
+    setIsIOS(iosDevice)
+    setIsMobile(mobileDevice)
 
-    // Si l'utilisateur a fermé volontairement le bouton,
-    // on le laisse tranquille pendant 30 jours.
+    if (!mobileDevice) {
+      setShowBanner(false)
+      return
+    }
+
     const dismissedAt =
       localStorage.getItem('troctruc-install-prompt-dismissed-at')
 
     if (dismissedAt) {
+      const sevenDays = 7 * 24 * 60 * 60 * 1000
       const dismissedDate = Number(dismissedAt)
-      const thirtyDays = 30 * 24 * 60 * 60 * 1000
 
-      if (Date.now() - dismissedDate < thirtyDays) {
+      if (Date.now() - dismissedDate < sevenDays) {
+        setShowBanner(false)
         return
       }
 
@@ -46,22 +51,12 @@ export default function InstallPrompt() {
 
     const handleBeforeInstallPrompt = (event: any) => {
       event.preventDefault()
-
       setDeferredPrompt(event)
-
-      // IMPORTANT :
-      // Sur Chrome/Android, on affiche le bouton
-      // uniquement si Chrome dit que l'app est installable.
-      setShowBanner(true)
     }
 
     const handleAppInstalled = () => {
       setDeferredPrompt(null)
       setShowBanner(false)
-
-      // On ne mémorise PAS définitivement l'installation.
-      // Ainsi, si l'utilisateur désinstalle TrocTruc plus tard,
-      // Chrome pourra reproposer l'installation.
     }
 
     window.addEventListener(
@@ -74,11 +69,10 @@ export default function InstallPrompt() {
       handleAppInstalled
     )
 
-    // Safari iOS ne possède pas beforeinstallprompt.
-    // Il faut donc proposer manuellement l'installation.
-    if (isIosDevice) {
-      setShowBanner(true)
-    }
+    // Sur mobile web, on affiche le bouton.
+    // Si Chrome fournit le prompt natif, on l'utilisera.
+    // Sinon, on donnera les instructions.
+    setShowBanner(true)
 
     return () => {
       window.removeEventListener(
@@ -103,7 +97,6 @@ export default function InstallPrompt() {
   }
 
   const handleInstallClick = async () => {
-    // Chrome / Android
     if (deferredPrompt) {
       deferredPrompt.prompt()
 
@@ -118,7 +111,6 @@ export default function InstallPrompt() {
       return
     }
 
-    // Safari / iPhone / iPad
     if (isIOS) {
       alert(
         "Pour installer TrocTruc SPM :\n\n" +
@@ -126,10 +118,18 @@ export default function InstallPrompt() {
           "2. Appuyez sur le bouton Partager.\n" +
           "3. Choisissez « Sur l'écran d'accueil »."
       )
+
+      return
     }
+
+    alert(
+      "Pour installer TrocTruc SPM :\n\n" +
+        "1. Ouvrez le menu ⋮ de votre navigateur.\n" +
+        "2. Choisissez « Installer l'application » ou « Ajouter à l'écran d'accueil »."
+    )
   }
 
-  if (!showBanner) return null
+  if (!showBanner || !isMobile) return null
 
   return (
     <div
@@ -168,7 +168,7 @@ export default function InstallPrompt() {
       <button
         onClick={handleDismiss}
         aria-label="Fermer"
-        title="Ne plus afficher pendant 30 jours"
+        title="Masquer pendant 7 jours"
         style={{
           width: '32px',
           height: '32px',
