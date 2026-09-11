@@ -257,10 +257,61 @@ export default function Home() {
     }
   }, [user?.id])
 
+  /**
+   * Affiche le nombre de messages non lus :
+   * - dans le titre de l'onglet
+   * - sur l'icône de l'application quand l'appareil le permet
+   */
+  useEffect(() => {
+    const baseTitle = 'TrocTruc SPM'
+
+    if (unreadCount > 0) {
+      document.title =
+        `(${unreadCount}) ${baseTitle}`
+    } else {
+      document.title =
+        baseTitle
+    }
+
+    const nav = navigator as Navigator & {
+      setAppBadge?: (
+        contents?: number
+      ) => Promise<void>
+      clearAppBadge?: () => Promise<void>
+    }
+
+    async function updateAppBadge() {
+      try {
+        if (unreadCount > 0) {
+          if (nav.setAppBadge) {
+            await nav.setAppBadge(
+              unreadCount
+            )
+          }
+        } else {
+          if (nav.clearAppBadge) {
+            await nav.clearAppBadge()
+          } else if (
+            nav.setAppBadge
+          ) {
+            await nav.setAppBadge(0)
+          }
+        }
+      } catch (err) {
+        console.warn(
+          "Badge d'application non pris en charge sur cet appareil :",
+          err
+        )
+      }
+    }
+
+    updateAppBadge()
+  }, [unreadCount])
+
   async function fetchAnnonces() {
     setLoading(true)
 
-    let query = supabase
+    const query = supabase
       .from('annonces')
       .select('*')
       .order(
@@ -1290,8 +1341,7 @@ export default function Home() {
               }
               onChange={(e) =>
                 handleCategoryChange(
-                  e.target
-                    .value
+                  e.target.value
                 )
               }
               style={{
