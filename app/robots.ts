@@ -1,12 +1,18 @@
-import { MetadataRoute } from 'next'
+import type { MetadataRoute } from 'next'
 
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/api/', '/profil', '/messages'],
+      disallow: [
+        '/api/',
+        '/profil',
+        '/messages',
+        '/conversations',
+      ],
     },
+
     sitemap: 'https://troctruc-spm.com/sitemap.xml',
   }
 }

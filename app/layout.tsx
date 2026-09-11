@@ -9,34 +9,46 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://troctruc-spm.com'),
+
   alternates: {
     canonical: '/',
   },
+
   title: {
-    default: 'TrocTruc SPM - Petites annonces et covoiturage à Saint-Pierre-et-Miquelon',
+    default: 'Petites annonces à Saint-Pierre-et-Miquelon | TrocTruc SPM',
     template: '%s | TrocTruc SPM',
   },
+
   description:
-    "Plateforme locale de troc, vente d'occasion, dons et covoiturage entre particuliers à Saint-Pierre-et-Miquelon.",
+    "Achetez, vendez, donnez et échangez localement à Saint-Pierre-et-Miquelon. Petites annonces et covoiturage à Saint-Pierre, Miquelon et Langlade.",
+
   keywords: [
     'Saint-Pierre-et-Miquelon',
     'SPM',
+    'petites annonces Saint-Pierre-et-Miquelon',
     'petites annonces SPM',
-    'troc Saint-Pierre',
-    'covoiturage SPM',
+    'occasion SPM',
     'occasion Saint-Pierre-et-Miquelon',
+    'troc Saint-Pierre',
+    'troc SPM',
+    'covoiturage SPM',
     'achat vente SPM',
+    'Miquelon',
+    'Langlade',
   ],
+
   manifest: '/manifest.json',
+
   openGraph: {
-    title: 'TrocTruc SPM - Petites annonces & covoiturage local',
+    title: 'Petites annonces à Saint-Pierre-et-Miquelon | TrocTruc SPM',
     description:
-      "Achetez, vendez, donnez et partagez vos trajets à Saint-Pierre-et-Miquelon.",
+      "Achetez, vendez, donnez et échangez localement à Saint-Pierre-et-Miquelon.",
     url: 'https://troctruc-spm.com',
     siteName: 'TrocTruc SPM',
     locale: 'fr_FR',
     type: 'website',
   },
+
   robots: {
     index: true,
     follow: true,
