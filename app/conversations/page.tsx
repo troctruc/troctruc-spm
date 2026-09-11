@@ -124,6 +124,31 @@ export default function ConversationsPage() {
           data.map(
             async (conv) => {
               /*
+               * UTILISATEUR EN FACE
+               */
+              const otherId =
+                conv.seller_id ===
+                user.id
+                  ? conv.buyer_id
+                  : conv.seller_id
+
+              /*
+               * PROFIL DE L'AUTRE UTILISATEUR
+               */
+              const {
+                data: profileData
+              } = await supabase
+                .from('profiles')
+                .select(
+                  'id, pseudo, avatar_url'
+                )
+                .eq(
+                  'id',
+                  otherId
+                )
+                .maybeSingle()
+
+              /*
                * ANNONCE ASSOCIÉE
                */
               const {
@@ -163,8 +188,7 @@ export default function ConversationsPage() {
                 .maybeSingle()
 
               /*
-               * NOMBRE DE MESSAGES
-               * NON LUS
+               * MESSAGES NON LUS
                */
               const {
                 count:
@@ -193,12 +217,6 @@ export default function ConversationsPage() {
                   null
                 )
 
-              const otherId =
-                conv.seller_id ===
-                user.id
-                  ? conv.buyer_id
-                  : conv.seller_id
-
               const isBlocked =
                 blockedIds.includes(
                   otherId
@@ -210,6 +228,15 @@ export default function ConversationsPage() {
                 annonces:
                   annonceData ||
                   null,
+
+                otherUser:
+                  profileData || {
+                    id: otherId,
+                    pseudo:
+                      'Membre TrocTruc',
+                    avatar_url:
+                      null
+                  },
 
                 hasUnread:
                   (unreadCount ||
@@ -236,11 +263,7 @@ export default function ConversationsPage() {
         )
 
       /*
-       * PLUS DE FILTRAGE DES
-       * UTILISATEURS BLOQUÉS.
-       *
-       * Les conversations restent
-       * visibles dans l'historique.
+       * TRI PAR DERNIER MESSAGE
        */
       const sorted = [
         ...enrichedConversations
@@ -262,6 +285,9 @@ export default function ConversationsPage() {
     setLoading(false)
   }
 
+  /*
+   * OUVRIR UNE DISCUSSION
+   */
   async function handleOpenConversation(
     annonce: any,
     convId: string,
@@ -349,7 +375,7 @@ export default function ConversationsPage() {
   }
 
   /*
-   * BLOQUER UN UTILISATEUR
+   * BLOQUER
    */
   async function handleBlockUser(
     e: React.MouseEvent,
@@ -389,12 +415,15 @@ export default function ConversationsPage() {
       )
 
       setActiveAnnonce(null)
+
       setActiveConversationId(
         null
       )
+
       setActiveOtherUserId(
         null
       )
+
       setActiveConversationBlocked(
         false
       )
@@ -437,6 +466,9 @@ export default function ConversationsPage() {
     }
   }
 
+  /*
+   * CHARGEMENT
+   */
   if (loading) {
     return (
       <div
@@ -672,7 +704,7 @@ export default function ConversationsPage() {
           'sans-serif'
       }}
     >
-      {/* EN-TÊTE */}
+      {/* HEADER PAGE */}
       <div
         style={{
           display:
@@ -831,7 +863,7 @@ export default function ConversationsPage() {
         </button>
       </div>
 
-      {/* DISCUSSIONS */}
+      {/* LISTE DES DISCUSSIONS */}
       {activeTab ===
         'conversations' && (
         <div
@@ -877,6 +909,14 @@ export default function ConversationsPage() {
                     currentUser.id
                       ? conv.buyer_id
                       : conv.seller_id
+
+                  const otherUser =
+                    conv.otherUser || {
+                      pseudo:
+                        'Membre TrocTruc',
+                      avatar_url:
+                        null
+                    }
 
                   const isUnread =
                     conv.hasUnread
@@ -951,43 +991,86 @@ export default function ConversationsPage() {
                               0
                           }}
                         >
+                          {/* AVATAR */}
                           <div
                             style={{
                               width:
-                                '46px',
+                                '48px',
                               height:
-                                '46px',
-                              backgroundColor:
-                                isBlocked
-                                  ? '#ffedd5'
-                                  : isUnread
-                                    ? '#dcfce7'
-                                    : '#f1f5f9',
+                                '48px',
                               borderRadius:
-                                '10px',
+                                '50%',
+                              backgroundColor:
+                                '#f1f5f9',
                               display:
                                 'flex',
                               alignItems:
                                 'center',
                               justifyContent:
                                 'center',
-                              fontSize:
-                                '20px',
                               flexShrink:
                                 0,
                               border:
-                                isBlocked
-                                  ? '1px solid #fdba74'
-                                  : isUnread
-                                    ? '1px solid #86efac'
-                                    : '1px solid #e2e8f0',
+                                isUnread
+                                  ? '2px solid #86efac'
+                                  : '1px solid #dbe2e8',
                               position:
-                                'relative'
+                                'relative',
+                              overflow:
+                                'visible'
                             }}
                           >
-                            {isBlocked
-                              ? '🚫'
-                              : '💬'}
+                            <div
+                              style={{
+                                width:
+                                  '100%',
+                                height:
+                                  '100%',
+                                borderRadius:
+                                  '50%',
+                                overflow:
+                                  'hidden',
+                                display:
+                                  'flex',
+                                alignItems:
+                                  'center',
+                                justifyContent:
+                                  'center',
+                                backgroundColor:
+                                  '#f1f5f9'
+                              }}
+                            >
+                              {otherUser.avatar_url ? (
+                                <img
+                                  src={
+                                    otherUser.avatar_url
+                                  }
+                                  alt={
+                                    otherUser.pseudo ||
+                                    'Avatar'
+                                  }
+                                  style={{
+                                    width:
+                                      '100%',
+                                    height:
+                                      '100%',
+                                    objectFit:
+                                      'cover'
+                                  }}
+                                />
+                              ) : (
+                                <span
+                                  style={{
+                                    fontSize:
+                                      '20px',
+                                    color:
+                                      '#64748b'
+                                  }}
+                                >
+                                  👤
+                                </span>
+                              )}
+                            </div>
 
                             {isUnread &&
                               !isBlocked && (
@@ -996,13 +1079,13 @@ export default function ConversationsPage() {
                                     position:
                                       'absolute',
                                     top:
-                                      '-3px',
+                                      '-2px',
                                     right:
-                                      '-3px',
+                                      '-2px',
                                     width:
-                                      '10px',
+                                      '11px',
                                     height:
-                                      '10px',
+                                      '11px',
                                     backgroundColor:
                                       '#22c55e',
                                     borderRadius:
@@ -1014,6 +1097,7 @@ export default function ConversationsPage() {
                               )}
                           </div>
 
+                          {/* TEXTE */}
                           <div
                             style={{
                               minWidth:
@@ -1025,7 +1109,7 @@ export default function ConversationsPage() {
                             <h3
                               style={{
                                 margin:
-                                  '0 0 3px 0',
+                                  '0 0 4px 0',
                                 fontSize:
                                   '15px',
                                 color:
@@ -1033,7 +1117,7 @@ export default function ConversationsPage() {
                                 fontWeight:
                                   isUnread
                                     ? '800'
-                                    : '600',
+                                    : '700',
                                 whiteSpace:
                                   'nowrap',
                                 overflow:
@@ -1049,6 +1133,8 @@ export default function ConversationsPage() {
 
                             <span
                               style={{
+                                display:
+                                  'block',
                                 fontSize:
                                   '12px',
                                 color:
@@ -1056,25 +1142,32 @@ export default function ConversationsPage() {
                                     ? '#c2410c'
                                     : isUnread
                                       ? '#16a34a'
-                                      : '#94a3b8',
+                                      : '#7c8a99',
                                 fontWeight:
                                   isBlocked ||
                                   isUnread
                                     ? '700'
-                                    : 'normal'
+                                    : '500',
+                                whiteSpace:
+                                  'nowrap',
+                                overflow:
+                                  'hidden',
+                                textOverflow:
+                                  'ellipsis'
                               }}
                             >
                               {isBlocked
-                                ? '🚫 Utilisateur bloqué'
+                                ? `🚫 ${otherUser.pseudo || 'Utilisateur bloqué'}`
                                 : isUnread
                                   ? conv.unreadCount > 1
-                                    ? `● ${conv.unreadCount} nouveaux messages`
-                                    : '● Nouveau message non lu'
-                                  : 'Discussion ouverte'}
+                                    ? `${conv.unreadCount} nouveaux messages · ${otherUser.pseudo || 'Membre TrocTruc'}`
+                                    : `Nouveau message · ${otherUser.pseudo || 'Membre TrocTruc'}`
+                                  : `Avec ${otherUser.pseudo || 'Membre TrocTruc'}`}
                             </span>
                           </div>
                         </div>
 
+                        {/* ACTIONS */}
                         <div
                           style={{
                             display:
@@ -1105,9 +1198,11 @@ export default function ConversationsPage() {
                               cursor:
                                 'pointer',
                               fontSize:
-                                '18px',
+                                '17px',
                               padding:
-                                '6px'
+                                '6px',
+                              opacity:
+                                0.72
                             }}
                           >
                             🗑️
@@ -1132,9 +1227,11 @@ export default function ConversationsPage() {
                                 cursor:
                                   'pointer',
                                 fontSize:
-                                  '18px',
+                                  '17px',
                                 padding:
-                                  '6px'
+                                  '6px',
+                                opacity:
+                                  0.72
                               }}
                             >
                               🚫
