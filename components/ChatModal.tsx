@@ -113,6 +113,9 @@ export default function ChatModal({
       setLoading(true)
 
       try {
+        /*
+         * TITRE DE L'ANNONCE
+         */
         if (annonceId) {
           const {
             data: annonceData
@@ -138,6 +141,9 @@ export default function ChatModal({
         let activeConvId = initialConvId
         let interlocutorId: string | null = null
 
+        /*
+         * RECHERCHE OU CRÉATION
+         */
         if (!activeConvId && annonceId) {
           const {
             data: existingConvs,
@@ -239,6 +245,9 @@ export default function ChatModal({
             sellerId
         }
 
+        /*
+         * PROFIL
+         */
         if (
           interlocutorId &&
           isMounted
@@ -267,6 +276,9 @@ export default function ChatModal({
           }
         }
 
+        /*
+         * MESSAGES
+         */
         if (
           activeConvId &&
           isMounted
@@ -329,6 +341,9 @@ export default function ChatModal({
     initialConvId
   ])
 
+  /*
+   * TEMPS RÉEL
+   */
   useEffect(() => {
     if (!conversationId) return
 
@@ -487,6 +502,9 @@ export default function ChatModal({
       })
     }
 
+    /*
+     * PUSH
+     */
     try {
       const pushResponse =
         await fetch(
@@ -562,11 +580,11 @@ export default function ChatModal({
           'system-ui, -apple-system, sans-serif'
       }}
     >
-      {/* HEADER */}
+      {/* HEADER TROCTRUC */}
       <div
         style={{
           backgroundColor:
-            '#e9ecef',
+            '#356f63',
           padding:
             '13px 14px',
           display:
@@ -576,7 +594,7 @@ export default function ChatModal({
           alignItems:
             'center',
           borderBottom:
-            '1px solid #d2d7dc'
+            '1px solid #2f6258'
         }}
       >
         <div
@@ -627,7 +645,7 @@ export default function ChatModal({
               flexShrink:
                 0,
               border:
-                '1px solid #cfd5da'
+                '1px solid rgba(255,255,255,0.65)'
             }}
           >
             {otherUser?.avatar_url ? (
@@ -666,7 +684,7 @@ export default function ChatModal({
               fontWeight:
                 '700',
               color:
-                '#24313f',
+                '#ffffff',
               whiteSpace:
                 'nowrap',
               overflow:
@@ -687,11 +705,11 @@ export default function ChatModal({
           aria-label="Fermer la conversation"
           style={{
             background:
-              '#f8f9fa',
+              'rgba(255,255,255,0.14)',
             border:
-              '1px solid #cfd5da',
+              '1px solid rgba(255,255,255,0.45)',
             color:
-              '#66727d',
+              '#ffffff',
             width:
               '30px',
             height:
@@ -730,9 +748,9 @@ export default function ChatModal({
           border:
             'none',
           borderBottom:
-            '1px solid #2f6258',
+            '1px solid #cbd1d6',
           backgroundColor:
-            '#356f63',
+            '#dfe3e6',
           padding:
             '10px 14px',
           textAlign:
@@ -750,7 +768,7 @@ export default function ChatModal({
             fontWeight:
               '700',
             color:
-              '#ffffff'
+              '#2f3a43'
           }}
         >
           {annonceTitle}
