@@ -1919,7 +1919,53 @@ export default function Home() {
           </>
         )}
       </main>
-            <InstallPrompt />
+            {/* TEXTE SEO LOCAL */}
+      <section
+        aria-labelledby="seo-local-title"
+        style={{
+          maxWidth: '1000px',
+          margin: '42px auto 0',
+          padding: '0 16px',
+          boxSizing: 'border-box'
+        }}
+      >
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            border: '1px solid #e7ebef',
+            borderRadius: '12px',
+            padding: '18px 20px',
+            color: '#64748b',
+            fontSize: '13px',
+            lineHeight: 1.6
+          }}
+        >
+          <h2
+            id="seo-local-title"
+            style={{
+              margin: '0 0 8px 0',
+              fontSize: '15px',
+              color: '#334155',
+              fontWeight: '700'
+            }}
+          >
+            TrocTruc SPM, les petites annonces locales de
+            Saint-Pierre-et-Miquelon
+          </h2>
+
+          <p
+            style={{
+              margin: 0
+            }}
+          >
+            Retrouvez les annonces de particuliers à Saint-Pierre, Miquelon
+            et Langlade : objets d&apos;occasion, maison, véhicules,
+            immobilier, services, dons, troc, recherches et covoiturage.
+          </p>
+        </div>
+      </section>
+
+      <InstallPrompt />
 
       <footer
         style={{
