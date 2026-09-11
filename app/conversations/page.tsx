@@ -6,14 +6,43 @@ import ChatModal from '@/components/ChatModal'
 import Link from 'next/link'
 
 export default function ConversationsPage() {
-  const [conversations, setConversations] = useState<any[]>([])
-  const [blockedUsers, setBlockedUsers] = useState<any[]>([])
-  const [activeTab, setActiveTab] = useState<'conversations' | 'blocked'>('conversations')
-  const [loading, setLoading] = useState(true)
-  const [currentUser, setCurrentUser] = useState<any>(null)
-  const [activeAnnonce, setActiveAnnonce] = useState<any>(null)
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
-  const [activeOtherUserId, setActiveOtherUserId] = useState<string | null>(null)
+  const [conversations, setConversations] =
+    useState<any[]>([])
+
+  const [blockedUsers, setBlockedUsers] =
+    useState<any[]>([])
+
+  const [activeTab, setActiveTab] =
+    useState<
+      'conversations' | 'blocked'
+    >('conversations')
+
+  const [loading, setLoading] =
+    useState(true)
+
+  const [currentUser, setCurrentUser] =
+    useState<any>(null)
+
+  const [activeAnnonce, setActiveAnnonce] =
+    useState<any>(null)
+
+  const [
+    activeConversationId,
+    setActiveConversationId
+  ] =
+    useState<string | null>(null)
+
+  const [
+    activeOtherUserId,
+    setActiveOtherUserId
+  ] =
+    useState<string | null>(null)
+
+  const [
+    activeConversationBlocked,
+    setActiveConversationBlocked
+  ] =
+    useState(false)
 
   useEffect(() => {
     fetchData()
@@ -33,11 +62,21 @@ export default function ConversationsPage() {
 
     setCurrentUser(user)
 
-    // 1. Récupérer les utilisateurs bloqués
-    const { data: blocksData, error: blockError } = await supabase
+    /*
+     * UTILISATEURS BLOQUÉS
+     */
+    const {
+      data: blocksData,
+      error: blockError
+    } = await supabase
       .from('blocks')
-      .select('id, blocked_id')
-      .eq('blocker_id', user.id)
+      .select(
+        'id, blocked_id'
+      )
+      .eq(
+        'blocker_id',
+        user.id
+      )
 
     if (blockError) {
       console.error(
@@ -46,16 +85,26 @@ export default function ConversationsPage() {
       )
     }
 
-    const blockedList = blocksData || []
+    const blockedList =
+      blocksData || []
 
-    setBlockedUsers(blockedList)
-
-    const blockedIds = blockedList.map(
-      (b) => b.blocked_id
+    setBlockedUsers(
+      blockedList
     )
 
-    // 2. Récupérer les conversations de l'utilisateur connecté
-    const { data, error } = await supabase
+    const blockedIds =
+      blockedList.map(
+        (b) =>
+          b.blocked_id
+      )
+
+    /*
+     * CONVERSATIONS
+     */
+    const {
+      data,
+      error
+    } = await supabase
       .from('conversations')
       .select('*')
       .or(
@@ -70,86 +119,132 @@ export default function ConversationsPage() {
     }
 
     if (data) {
-      const enrichedConversations = await Promise.all(
-        data.map(async (conv) => {
-          // Récupérer l'annonce associée
-          const { data: annonceData } = await supabase
-            .from('annonces')
-            .select('*')
-            .eq('id', conv.annonce_id)
-            .single()
+      const enrichedConversations =
+        await Promise.all(
+          data.map(
+            async (conv) => {
+              /*
+               * ANNONCE ASSOCIÉE
+               */
+              const {
+                data: annonceData
+              } = await supabase
+                .from('annonces')
+                .select('*')
+                .eq(
+                  'id',
+                  conv.annonce_id
+                )
+                .maybeSingle()
 
-          // Récupérer le dernier message de la conversation
-          const { data: lastMessageData } = await supabase
-            .from('messages')
-            .select('sender_id, created_at, content')
-            .eq('conversation_id', conv.id)
-            .order('created_at', {
-              ascending: false
-            })
-            .limit(1)
-            .maybeSingle()
+              /*
+               * DERNIER MESSAGE
+               */
+              const {
+                data:
+                  lastMessageData
+              } = await supabase
+                .from('messages')
+                .select(
+                  'sender_id, created_at, content, read_at'
+                )
+                .eq(
+                  'conversation_id',
+                  conv.id
+                )
+                .order(
+                  'created_at',
+                  {
+                    ascending:
+                      false
+                  }
+                )
+                .limit(1)
+                .maybeSingle()
 
-          let hasUnread = false
+              /*
+               * NOMBRE DE MESSAGES
+               * NON LUS
+               */
+              const {
+                count:
+                  unreadCount
+              } = await supabase
+                .from('messages')
+                .select(
+                  'id',
+                  {
+                    count:
+                      'exact',
+                    head:
+                      true
+                  }
+                )
+                .eq(
+                  'conversation_id',
+                  conv.id
+                )
+                .neq(
+                  'sender_id',
+                  user.id
+                )
+                .is(
+                  'read_at',
+                  null
+                )
 
-          if (
-            lastMessageData &&
-            lastMessageData.sender_id !== user.id
-          ) {
-            const isBuyer =
-              conv.buyer_id === user.id
+              const otherId =
+                conv.seller_id ===
+                user.id
+                  ? conv.buyer_id
+                  : conv.seller_id
 
-            const lastReadAt =
-              isBuyer
-                ? conv.last_read_buyer_at
-                : conv.last_read_seller_at
+              const isBlocked =
+                blockedIds.includes(
+                  otherId
+                )
 
-            if (!lastReadAt) {
-              hasUnread = true
-            } else {
-              hasUnread =
-                new Date(
-                  lastMessageData.created_at
-                ).getTime() >
-                new Date(
-                  lastReadAt
-                ).getTime()
+              return {
+                ...conv,
+
+                annonces:
+                  annonceData ||
+                  null,
+
+                hasUnread:
+                  (unreadCount ||
+                    0) > 0,
+
+                unreadCount:
+                  unreadCount ||
+                  0,
+
+                isBlocked,
+
+                lastMessageAt:
+                  lastMessageData
+                    ?.created_at ||
+                  conv.created_at,
+
+                lastMessage:
+                  lastMessageData
+                    ?.content ||
+                  null
+              }
             }
-          }
-
-          return {
-            ...conv,
-            annonces: annonceData || null,
-            hasUnread,
-
-            // Date du dernier message utilisée pour le classement
-            lastMessageAt:
-              lastMessageData?.created_at ||
-              conv.created_at,
-
-            // Texte du dernier message disponible si besoin plus tard
-            lastMessage:
-              lastMessageData?.content || null
-          }
-        })
-      )
-
-      // 3. Filtrer les conversations avec utilisateurs bloqués
-      const filtered =
-        enrichedConversations.filter(
-          (conv: any) => {
-            const otherId =
-              conv.seller_id === user.id
-                ? conv.buyer_id
-                : conv.seller_id
-
-            return !blockedIds.includes(otherId)
-          }
+          )
         )
 
-      // 4. Trier par DERNIER MESSAGE :
-      // la conversation la plus récente remonte en premier
-      const sorted = [...filtered].sort(
+      /*
+       * PLUS DE FILTRAGE DES
+       * UTILISATEURS BLOQUÉS.
+       *
+       * Les conversations restent
+       * visibles dans l'historique.
+       */
+      const sorted = [
+        ...enrichedConversations
+      ].sort(
         (a, b) =>
           new Date(
             b.lastMessageAt
@@ -159,53 +254,44 @@ export default function ConversationsPage() {
           ).getTime()
       )
 
-      setConversations(sorted)
+      setConversations(
+        sorted
+      )
     }
 
     setLoading(false)
   }
 
-  // Ouvrir une conversation et mettre à jour le timestamp de lecture dans Supabase
   async function handleOpenConversation(
     annonce: any,
     convId: string,
-    otherUserId: string
+    otherUserId: string,
+    isBlocked: boolean
   ) {
-    if (currentUser) {
-      const currentConv = conversations.find(
-        (c) => c.id === convId
-      )
-
-      if (currentConv) {
-        const isBuyer =
-          currentConv.buyer_id === currentUser.id
-
-        const fieldToUpdate =
-          isBuyer
-            ? 'last_read_buyer_at'
-            : 'last_read_seller_at'
-
-        await supabase
-          .from('conversations')
-          .update({
-            [fieldToUpdate]: new Date().toISOString()
-          })
-          .eq('id', convId)
-      }
-    }
-
     setActiveAnnonce(
       annonce || {
         id: 'inconnue',
-        titre: 'Annonce introuvable'
+        titre:
+          'Annonce introuvable'
       }
     )
 
-    setActiveConversationId(convId)
-    setActiveOtherUserId(otherUserId)
+    setActiveConversationId(
+      convId
+    )
+
+    setActiveOtherUserId(
+      otherUserId
+    )
+
+    setActiveConversationBlocked(
+      isBlocked
+    )
   }
 
-  // Supprimer un fil de discussion
+  /*
+   * SUPPRIMER UNE DISCUSSION
+   */
   async function handleDeleteConversation(
     e: React.MouseEvent,
     conversationId: string
@@ -220,10 +306,15 @@ export default function ConversationsPage() {
       return
     }
 
-    const { error } = await supabase
+    const {
+      error
+    } = await supabase
       .from('conversations')
       .delete()
-      .eq('id', conversationId)
+      .eq(
+        'id',
+        conversationId
+      )
 
     if (error) {
       alert(
@@ -233,20 +324,33 @@ export default function ConversationsPage() {
     } else {
       setConversations(
         conversations.filter(
-          (c) => c.id !== conversationId
+          (c) =>
+            c.id !==
+            conversationId
         )
       )
 
       if (
-        activeConversationId === conversationId
+        activeConversationId ===
+        conversationId
       ) {
         setActiveAnnonce(null)
-        setActiveConversationId(null)
+        setActiveConversationId(
+          null
+        )
+        setActiveOtherUserId(
+          null
+        )
+        setActiveConversationBlocked(
+          false
+        )
       }
     }
   }
 
-  // Bloquer un utilisateur
+  /*
+   * BLOQUER UN UTILISATEUR
+   */
   async function handleBlockUser(
     e: React.MouseEvent,
     userIdToBlock: string
@@ -261,12 +365,16 @@ export default function ConversationsPage() {
       return
     }
 
-    const { error } = await supabase
+    const {
+      error
+    } = await supabase
       .from('blocks')
       .insert([
         {
-          blocker_id: currentUser.id,
-          blocked_id: userIdToBlock
+          blocker_id:
+            currentUser.id,
+          blocked_id:
+            userIdToBlock
         }
       ])
 
@@ -281,13 +389,23 @@ export default function ConversationsPage() {
       )
 
       setActiveAnnonce(null)
-      setActiveConversationId(null)
+      setActiveConversationId(
+        null
+      )
+      setActiveOtherUserId(
+        null
+      )
+      setActiveConversationBlocked(
+        false
+      )
 
       fetchData()
     }
   }
 
-  // Débloquer un utilisateur
+  /*
+   * DÉBLOQUER
+   */
   async function handleUnblockUser(
     blockId: string
   ) {
@@ -299,10 +417,15 @@ export default function ConversationsPage() {
       return
     }
 
-    const { error } = await supabase
+    const {
+      error
+    } = await supabase
       .from('blocks')
       .delete()
-      .eq('id', blockId)
+      .eq(
+        'id',
+        blockId
+      )
 
     if (error) {
       alert(
@@ -318,9 +441,12 @@ export default function ConversationsPage() {
     return (
       <div
         style={{
-          padding: '40px',
-          textAlign: 'center',
-          fontFamily: 'sans-serif'
+          padding:
+            '40px',
+          textAlign:
+            'center',
+          fontFamily:
+            'sans-serif'
         }}
       >
         Chargement...
@@ -328,7 +454,9 @@ export default function ConversationsPage() {
     )
   }
 
-  // VUE D'UNE DISCUSSION OUVERTE
+  /*
+   * DISCUSSION OUVERTE
+   */
   if (
     activeAnnonce &&
     currentUser &&
@@ -346,77 +474,125 @@ export default function ConversationsPage() {
     return (
       <div
         style={{
-          padding: '40px',
-          maxWidth: '800px',
-          margin: '0 auto',
-          fontFamily: 'sans-serif',
-          position: 'relative'
+          padding:
+            '40px',
+          maxWidth:
+            '800px',
+          margin:
+            '0 auto',
+          fontFamily:
+            'sans-serif',
+          position:
+            'relative'
         }}
       >
         <div
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '20px'
+            display:
+              'flex',
+            justifyContent:
+              'space-between',
+            alignItems:
+              'center',
+            marginBottom:
+              '20px',
+            gap:
+              '10px',
+            flexWrap:
+              'wrap'
           }}
         >
           <button
             onClick={() => {
-              setActiveAnnonce(null)
-              setActiveConversationId(null)
+              setActiveAnnonce(
+                null
+              )
+
+              setActiveConversationId(
+                null
+              )
+
+              setActiveOtherUserId(
+                null
+              )
+
+              setActiveConversationBlocked(
+                false
+              )
+
               fetchData()
             }}
             style={{
-              padding: '8px 15px',
-              cursor: 'pointer',
-              borderRadius: '6px',
-              border: '1px solid #cbd5e1',
-              backgroundColor: '#fff',
-              fontWeight: '500'
+              padding:
+                '8px 15px',
+              cursor:
+                'pointer',
+              borderRadius:
+                '6px',
+              border:
+                '1px solid #cbd5e1',
+              backgroundColor:
+                '#fff',
+              fontWeight:
+                '500'
             }}
           >
             ← Retour à mes discussions
           </button>
 
-          {activeOtherUserId && (
-            <button
-              onClick={(e) =>
-                handleBlockUser(
-                  e,
-                  activeOtherUserId
-                )
-              }
-              style={{
-                padding: '8px 15px',
-                cursor: 'pointer',
-                borderRadius: '6px',
-                border: '1px solid #e74c3c',
-                backgroundColor: '#fff',
-                color: '#e74c3c',
-                fontWeight: 'bold'
-              }}
-            >
-              🚫 Bloquer l'utilisateur
-            </button>
-          )}
+          {activeOtherUserId &&
+            !activeConversationBlocked && (
+              <button
+                onClick={(e) =>
+                  handleBlockUser(
+                    e,
+                    activeOtherUserId
+                  )
+                }
+                style={{
+                  padding:
+                    '8px 15px',
+                  cursor:
+                    'pointer',
+                  borderRadius:
+                    '6px',
+                  border:
+                    '1px solid #e74c3c',
+                  backgroundColor:
+                    '#fff',
+                  color:
+                    '#e74c3c',
+                  fontWeight:
+                    'bold'
+                }}
+              >
+                🚫 Bloquer l'utilisateur
+              </button>
+            )}
         </div>
 
         <div
           style={{
-            backgroundColor: 'white',
-            padding: '24px',
-            borderRadius: '12px',
-            border: '1px solid #cbd5e1',
+            backgroundColor:
+              'white',
+            padding:
+              '24px',
+            borderRadius:
+              '12px',
+            border:
+              '1px solid #cbd5e1',
             boxShadow:
               '0 4px 6px rgba(0,0,0,0.05)'
           }}
         >
           <h1
             style={{
-              fontSize: '22px',
-              color: '#2c3e50',
-              margin: '0 0 12px 0'
+              fontSize:
+                '22px',
+              color:
+                '#2c3e50',
+              margin:
+                '0 0 12px 0'
             }}
           >
             {annonceTitle}
@@ -424,11 +600,16 @@ export default function ConversationsPage() {
 
           <p
             style={{
-              color: '#555',
-              lineHeight: '1.6',
-              fontSize: '14px',
-              margin: 0,
-              whiteSpace: 'pre-line'
+              color:
+                '#555',
+              lineHeight:
+                '1.6',
+              fontSize:
+                '14px',
+              margin:
+                0,
+              whiteSpace:
+                'pre-line'
             }}
           >
             {annonceDesc}
@@ -436,15 +617,38 @@ export default function ConversationsPage() {
         </div>
 
         <ChatModal
-          annonceId={activeAnnonce.id}
-          sellerId={activeAnnonce.user_id}
-          currentUserId={currentUser.id}
+          annonceId={
+            activeAnnonce.id
+          }
+          sellerId={
+            activeAnnonce.user_id
+          }
+          currentUserId={
+            currentUser.id
+          }
           conversationId={
             activeConversationId
           }
+          isBlocked={
+            activeConversationBlocked
+          }
           onClose={() => {
-            setActiveAnnonce(null)
-            setActiveConversationId(null)
+            setActiveAnnonce(
+              null
+            )
+
+            setActiveConversationId(
+              null
+            )
+
+            setActiveOtherUserId(
+              null
+            )
+
+            setActiveConversationBlocked(
+              false
+            )
+
             fetchData()
           }}
         />
@@ -452,48 +656,68 @@ export default function ConversationsPage() {
     )
   }
 
-  // PAGE PRINCIPALE AVEC LISTE DES DISCUSSIONS
+  /*
+   * PAGE MES MESSAGES
+   */
   return (
     <div
       style={{
-        padding: '40px',
-        maxWidth: '650px',
-        margin: '0 auto',
-        fontFamily: 'sans-serif'
+        padding:
+          '40px',
+        maxWidth:
+          '650px',
+        margin:
+          '0 auto',
+        fontFamily:
+          'sans-serif'
       }}
     >
       {/* EN-TÊTE */}
       <div
         style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '20px'
+          display:
+            'flex',
+          justifyContent:
+            'space-between',
+          alignItems:
+            'center',
+          marginBottom:
+            '20px'
         }}
       >
         <div
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '15px'
+            display:
+              'flex',
+            alignItems:
+              'center',
+            gap:
+              '15px'
           }}
         >
           <img
             src="/puffin-logo.jpeg"
             alt="Logo TrocTruc SPM"
             style={{
-              width: '45px',
-              height: '45px',
-              objectFit: 'contain',
-              borderRadius: '8px'
+              width:
+                '45px',
+              height:
+                '45px',
+              objectFit:
+                'contain',
+              borderRadius:
+                '8px'
             }}
           />
 
           <h1
             style={{
-              margin: 0,
-              fontSize: '26px',
-              color: '#1e293b'
+              margin:
+                0,
+              fontSize:
+                '26px',
+              color:
+                '#1e293b'
             }}
           >
             Mes Messages
@@ -503,14 +727,22 @@ export default function ConversationsPage() {
         <Link
           href="/"
           style={{
-            padding: '8px 16px',
-            backgroundColor: '#f1f5f9',
-            borderRadius: '6px',
-            color: '#475569',
-            textDecoration: 'none',
-            fontWeight: '500',
-            fontSize: '14px',
-            border: '1px solid #cbd5e1'
+            padding:
+              '8px 16px',
+            backgroundColor:
+              '#f1f5f9',
+            borderRadius:
+              '6px',
+            color:
+              '#475569',
+            textDecoration:
+              'none',
+            fontWeight:
+              '500',
+            fontSize:
+              '14px',
+            border:
+              '1px solid #cbd5e1'
           }}
         >
           Accueil
@@ -520,53 +752,76 @@ export default function ConversationsPage() {
       {/* ONGLETS */}
       <div
         style={{
-          display: 'flex',
-          gap: '10px',
-          marginTop: '20px',
+          display:
+            'flex',
+          gap:
+            '10px',
+          marginTop:
+            '20px',
           borderBottom:
             '2px solid #e2e8f0',
-          paddingBottom: '10px'
+          paddingBottom:
+            '10px'
         }}
       >
         <button
           onClick={() =>
-            setActiveTab('conversations')
+            setActiveTab(
+              'conversations'
+            )
           }
           style={{
-            padding: '8px 16px',
-            borderRadius: '6px',
-            border: 'none',
-            cursor: 'pointer',
-            fontWeight: 'bold',
+            padding:
+              '8px 16px',
+            borderRadius:
+              '6px',
+            border:
+              'none',
+            cursor:
+              'pointer',
+            fontWeight:
+              'bold',
             backgroundColor:
-              activeTab === 'conversations'
+              activeTab ===
+              'conversations'
                 ? '#2ecc71'
                 : '#e2e8f0',
             color:
-              activeTab === 'conversations'
+              activeTab ===
+              'conversations'
                 ? 'white'
                 : '#475569'
           }}
         >
-          Discussions ({conversations.length})
+          Discussions (
+          {conversations.length})
         </button>
 
         <button
           onClick={() =>
-            setActiveTab('blocked')
+            setActiveTab(
+              'blocked'
+            )
           }
           style={{
-            padding: '8px 16px',
-            borderRadius: '6px',
-            border: 'none',
-            cursor: 'pointer',
-            fontWeight: 'bold',
+            padding:
+              '8px 16px',
+            borderRadius:
+              '6px',
+            border:
+              'none',
+            cursor:
+              'pointer',
+            fontWeight:
+              'bold',
             backgroundColor:
-              activeTab === 'blocked'
+              activeTab ===
+              'blocked'
                 ? '#e74c3c'
                 : '#e2e8f0',
             color:
-              activeTab === 'blocked'
+              activeTab ===
+              'blocked'
                 ? 'white'
                 : '#475569'
           }}
@@ -576,17 +831,21 @@ export default function ConversationsPage() {
         </button>
       </div>
 
-      {/* LISTE DES DISCUSSIONS */}
-      {activeTab === 'conversations' && (
+      {/* DISCUSSIONS */}
+      {activeTab ===
+        'conversations' && (
         <div
           style={{
-            marginTop: '20px'
+            marginTop:
+              '20px'
           }}
         >
-          {conversations.length === 0 ? (
+          {conversations.length ===
+          0 ? (
             <p
               style={{
-                color: '#666'
+                color:
+                  '#666'
               }}
             >
               Vous n'avez aucune discussion pour le moment.
@@ -594,257 +853,319 @@ export default function ConversationsPage() {
           ) : (
             <ul
               style={{
-                listStyle: 'none',
-                padding: 0
+                listStyle:
+                  'none',
+                padding:
+                  0
               }}
             >
-              {conversations.map((conv) => {
-                const annonce =
-                  conv.annonces || {
-                    titre: 'Annonce'
-                  }
+              {conversations.map(
+                (conv) => {
+                  const annonce =
+                    conv.annonces || {
+                      titre:
+                        'Annonce'
+                    }
 
-                const annonceTitle =
-                  annonce.titre ||
-                  annonce.title ||
-                  'Annonce'
+                  const annonceTitle =
+                    annonce.titre ||
+                    annonce.title ||
+                    'Annonce'
 
-                const otherUserId =
-                  conv.seller_id ===
-                  currentUser.id
-                    ? conv.buyer_id
-                    : conv.seller_id
+                  const otherUserId =
+                    conv.seller_id ===
+                    currentUser.id
+                      ? conv.buyer_id
+                      : conv.seller_id
 
-                const isUnread =
-                  conv.hasUnread
+                  const isUnread =
+                    conv.hasUnread
 
-                return (
-                  <li
-                    key={conv.id}
-                    style={{
-                      marginBottom: '12px'
-                    }}
-                  >
-                    <div
-                      onClick={() =>
-                        handleOpenConversation(
-                          annonce,
-                          conv.id,
-                          otherUserId
-                        )
+                  const isBlocked =
+                    conv.isBlocked
+
+                  return (
+                    <li
+                      key={
+                        conv.id
                       }
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent:
-                          'space-between',
-                        padding: '14px 18px',
-                        backgroundColor:
-                          isUnread
-                            ? '#f0fdf4'
-                            : '#ffffff',
-                        border:
-                          isUnread
-                            ? '1.5px solid #22c55e'
-                            : '1px solid #e2e8f0',
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                        boxShadow:
-                          isUnread
-                            ? '0 3px 8px rgba(34, 197, 94, 0.12)'
-                            : '0 1px 3px rgba(0,0,0,0.04)',
-                        transition:
-                          'all 0.15s ease-in-out'
+                        marginBottom:
+                          '12px'
                       }}
                     >
                       <div
+                        onClick={() =>
+                          handleOpenConversation(
+                            annonce,
+                            conv.id,
+                            otherUserId,
+                            isBlocked
+                          )
+                        }
                         style={{
-                          display: 'flex',
+                          display:
+                            'flex',
                           alignItems:
                             'center',
-                          gap: '15px',
-                          flex: 1,
-                          minWidth: 0
+                          justifyContent:
+                            'space-between',
+                          padding:
+                            '14px 18px',
+                          backgroundColor:
+                            isBlocked
+                              ? '#fff7ed'
+                              : isUnread
+                                ? '#f0fdf4'
+                                : '#ffffff',
+                          border:
+                            isBlocked
+                              ? '1px solid #fed7aa'
+                              : isUnread
+                                ? '1.5px solid #22c55e'
+                                : '1px solid #e2e8f0',
+                          borderRadius:
+                            '10px',
+                          cursor:
+                            'pointer',
+                          boxShadow:
+                            isUnread &&
+                            !isBlocked
+                              ? '0 3px 8px rgba(34, 197, 94, 0.12)'
+                              : '0 1px 3px rgba(0,0,0,0.04)',
+                          transition:
+                            'all 0.15s ease-in-out'
                         }}
                       >
-                        {/* Icône + badge non lu */}
                         <div
                           style={{
-                            width: '46px',
-                            height: '46px',
-                            backgroundColor:
-                              isUnread
-                                ? '#dcfce7'
-                                : '#f1f5f9',
-                            borderRadius:
-                              '10px',
-                            display: 'flex',
+                            display:
+                              'flex',
                             alignItems:
                               'center',
-                            justifyContent:
-                              'center',
-                            fontSize:
-                              '20px',
-                            flexShrink: 0,
-                            border:
-                              isUnread
-                                ? '1px solid #86efac'
-                                : '1px solid #e2e8f0',
-                            position:
-                              'relative'
+                            gap:
+                              '15px',
+                            flex:
+                              1,
+                            minWidth:
+                              0
                           }}
                         >
-                          💬
+                          <div
+                            style={{
+                              width:
+                                '46px',
+                              height:
+                                '46px',
+                              backgroundColor:
+                                isBlocked
+                                  ? '#ffedd5'
+                                  : isUnread
+                                    ? '#dcfce7'
+                                    : '#f1f5f9',
+                              borderRadius:
+                                '10px',
+                              display:
+                                'flex',
+                              alignItems:
+                                'center',
+                              justifyContent:
+                                'center',
+                              fontSize:
+                                '20px',
+                              flexShrink:
+                                0,
+                              border:
+                                isBlocked
+                                  ? '1px solid #fdba74'
+                                  : isUnread
+                                    ? '1px solid #86efac'
+                                    : '1px solid #e2e8f0',
+                              position:
+                                'relative'
+                            }}
+                          >
+                            {isBlocked
+                              ? '🚫'
+                              : '💬'}
 
-                          {isUnread && (
+                            {isUnread &&
+                              !isBlocked && (
+                                <span
+                                  style={{
+                                    position:
+                                      'absolute',
+                                    top:
+                                      '-3px',
+                                    right:
+                                      '-3px',
+                                    width:
+                                      '10px',
+                                    height:
+                                      '10px',
+                                    backgroundColor:
+                                      '#22c55e',
+                                    borderRadius:
+                                      '50%',
+                                    border:
+                                      '2px solid white'
+                                  }}
+                                />
+                              )}
+                          </div>
+
+                          <div
+                            style={{
+                              minWidth:
+                                0,
+                              flex:
+                                1
+                            }}
+                          >
+                            <h3
+                              style={{
+                                margin:
+                                  '0 0 3px 0',
+                                fontSize:
+                                  '15px',
+                                color:
+                                  '#334155',
+                                fontWeight:
+                                  isUnread
+                                    ? '800'
+                                    : '600',
+                                whiteSpace:
+                                  'nowrap',
+                                overflow:
+                                  'hidden',
+                                textOverflow:
+                                  'ellipsis'
+                              }}
+                            >
+                              {
+                                annonceTitle
+                              }
+                            </h3>
+
                             <span
                               style={{
-                                position:
-                                  'absolute',
-                                top: '-3px',
-                                right: '-3px',
-                                width: '10px',
-                                height:
-                                  '10px',
-                                backgroundColor:
-                                  '#22c55e',
-                                borderRadius:
-                                  '50%',
-                                border:
-                                  '2px solid white'
+                                fontSize:
+                                  '12px',
+                                color:
+                                  isBlocked
+                                    ? '#c2410c'
+                                    : isUnread
+                                      ? '#16a34a'
+                                      : '#94a3b8',
+                                fontWeight:
+                                  isBlocked ||
+                                  isUnread
+                                    ? '700'
+                                    : 'normal'
                               }}
-                            />
-                          )}
+                            >
+                              {isBlocked
+                                ? '🚫 Utilisateur bloqué'
+                                : isUnread
+                                  ? conv.unreadCount > 1
+                                    ? `● ${conv.unreadCount} nouveaux messages`
+                                    : '● Nouveau message non lu'
+                                  : 'Discussion ouverte'}
+                            </span>
+                          </div>
                         </div>
 
-                        {/* Titre et statut */}
                         <div
                           style={{
-                            minWidth: 0,
-                            flex: 1
+                            display:
+                              'flex',
+                            alignItems:
+                              'center',
+                            gap:
+                              '4px',
+                            marginLeft:
+                              '12px'
                           }}
                         >
-                          <h3
+                          <button
+                            onClick={(
+                              e
+                            ) =>
+                              handleDeleteConversation(
+                                e,
+                                conv.id
+                              )
+                            }
+                            title="Supprimer la discussion"
                             style={{
-                              margin:
-                                '0 0 3px 0',
+                              background:
+                                'none',
+                              border:
+                                'none',
+                              cursor:
+                                'pointer',
                               fontSize:
-                                '15px',
-                              color:
-                                isUnread
-                                  ? '#0f172a'
-                                  : '#475569',
-                              fontWeight:
-                                isUnread
-                                  ? '800'
-                                  : '500',
-                              whiteSpace:
-                                'nowrap',
-                              overflow:
-                                'hidden',
-                              textOverflow:
-                                'ellipsis'
+                                '18px',
+                              padding:
+                                '6px'
                             }}
                           >
-                            {annonceTitle}
-                          </h3>
+                            🗑️
+                          </button>
 
-                          <span
-                            style={{
-                              fontSize:
-                                '12px',
-                              color:
-                                isUnread
-                                  ? '#16a34a'
-                                  : '#94a3b8',
-                              fontWeight:
-                                isUnread
-                                  ? '700'
-                                  : 'normal'
-                            }}
-                          >
-                            {isUnread
-                              ? '● Nouveau message non lu'
-                              : 'Discussion ouverte'}
-                          </span>
+                          {!isBlocked && (
+                            <button
+                              onClick={(
+                                e
+                              ) =>
+                                handleBlockUser(
+                                  e,
+                                  otherUserId
+                                )
+                              }
+                              title="Bloquer l'utilisateur"
+                              style={{
+                                background:
+                                  'none',
+                                border:
+                                  'none',
+                                cursor:
+                                  'pointer',
+                                fontSize:
+                                  '18px',
+                                padding:
+                                  '6px'
+                              }}
+                            >
+                              🚫
+                            </button>
+                          )}
                         </div>
                       </div>
-
-                      {/* ACTIONS */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems:
-                            'center',
-                          gap: '4px',
-                          marginLeft:
-                            '12px'
-                        }}
-                      >
-                        <button
-                          onClick={(e) =>
-                            handleDeleteConversation(
-                              e,
-                              conv.id
-                            )
-                          }
-                          title="Supprimer la discussion"
-                          style={{
-                            background:
-                              'none',
-                            border: 'none',
-                            cursor:
-                              'pointer',
-                            fontSize:
-                              '18px',
-                            padding: '6px'
-                          }}
-                        >
-                          🗑️
-                        </button>
-
-                        <button
-                          onClick={(e) =>
-                            handleBlockUser(
-                              e,
-                              otherUserId
-                            )
-                          }
-                          title="Bloquer l'utilisateur"
-                          style={{
-                            background:
-                              'none',
-                            border: 'none',
-                            cursor:
-                              'pointer',
-                            fontSize:
-                              '18px',
-                            padding: '6px'
-                          }}
-                        >
-                          🚫
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                )
-              })}
+                    </li>
+                  )
+                }
+              )}
             </ul>
           )}
         </div>
       )}
 
       {/* UTILISATEURS BLOQUÉS */}
-      {activeTab === 'blocked' && (
+      {activeTab ===
+        'blocked' && (
         <div
           style={{
-            marginTop: '20px'
+            marginTop:
+              '20px'
           }}
         >
-          {blockedUsers.length === 0 ? (
+          {blockedUsers.length ===
+          0 ? (
             <p
               style={{
-                color: '#666'
+                color:
+                  '#666'
               }}
             >
               Vous n'avez bloqué aucun utilisateur.
@@ -852,14 +1173,18 @@ export default function ConversationsPage() {
           ) : (
             <ul
               style={{
-                listStyle: 'none',
-                padding: 0
+                listStyle:
+                  'none',
+                padding:
+                  0
               }}
             >
               {blockedUsers.map(
                 (item) => (
                   <li
-                    key={item.id}
+                    key={
+                      item.id
+                    }
                     style={{
                       marginBottom:
                         '12px'
@@ -894,12 +1219,6 @@ export default function ConversationsPage() {
                         }}
                       >
                         Utilisateur bloqué
-                        (ID :{' '}
-                        {item.blocked_id.slice(
-                          0,
-                          8
-                        )}
-                        ...)
                       </span>
 
                       <button

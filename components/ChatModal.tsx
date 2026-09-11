@@ -10,6 +10,7 @@ interface ChatModalProps {
   currentUserId: string
   conversationId?: string | null
   onClose: () => void
+  isBlocked?: boolean
 }
 
 export default function ChatModal({
@@ -17,7 +18,8 @@ export default function ChatModal({
   sellerId,
   currentUserId,
   conversationId: initialConvId,
-  onClose
+  onClose,
+  isBlocked = false
 }: ChatModalProps) {
   const router = useRouter()
 
@@ -28,6 +30,8 @@ export default function ChatModal({
 
   const [loading, setLoading] = useState(true)
   const [otherUser, setOtherUser] = useState<any>(null)
+  const [annonceTitle, setAnnonceTitle] =
+    useState('Annonce')
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -79,6 +83,7 @@ export default function ChatModal({
         'Erreur marquage messages comme lus :',
         error
       )
+
       return
     }
 
@@ -109,9 +114,38 @@ export default function ChatModal({
       setLoading(true)
 
       try {
+        /*
+         * TITRE DE L'ANNONCE
+         */
+        if (annonceId) {
+          const {
+            data: annonceData
+          } = await supabase
+            .from('annonces')
+            .select('titre')
+            .eq(
+              'id',
+              annonceId
+            )
+            .maybeSingle()
+
+          if (
+            isMounted &&
+            annonceData?.titre
+          ) {
+            setAnnonceTitle(
+              annonceData.titre
+            )
+          }
+        }
+
         let activeConvId = initialConvId
         let interlocutorId: string | null = null
 
+        /*
+         * RECHERCHE OU CRÉATION
+         * DE LA CONVERSATION
+         */
         if (!activeConvId && annonceId) {
           const {
             data: existingConvs,
@@ -213,6 +247,9 @@ export default function ChatModal({
             sellerId
         }
 
+        /*
+         * PROFIL DE L'INTERLOCUTEUR
+         */
         if (
           interlocutorId &&
           isMounted
@@ -241,6 +278,9 @@ export default function ChatModal({
           }
         }
 
+        /*
+         * MESSAGES
+         */
         if (
           activeConvId &&
           isMounted
@@ -303,6 +343,9 @@ export default function ChatModal({
     initialConvId
   ])
 
+  /*
+   * TEMPS RÉEL
+   */
   useEffect(() => {
     if (!conversationId) return
 
@@ -394,6 +437,10 @@ export default function ChatModal({
   ) {
     e.preventDefault()
 
+    if (isBlocked) {
+      return
+    }
+
     if (
       !newMessage.trim() ||
       !conversationId
@@ -460,6 +507,9 @@ export default function ChatModal({
       })
     }
 
+    /*
+     * NOTIFICATION PUSH
+     */
     try {
       const pushResponse =
         await fetch(
@@ -509,13 +559,18 @@ export default function ChatModal({
         position: 'fixed',
         bottom: '16px',
         right: '16px',
-        width: 'min(380px, calc(100vw - 24px))',
+        width:
+          'min(380px, calc(100vw - 24px))',
         height: '500px',
-        maxHeight: 'calc(100vh - 32px)',
-        backgroundColor: '#fffdf9',
-        borderRadius: '10px',
+        maxHeight:
+          'calc(100vh - 32px)',
+        backgroundColor:
+          '#ffffff',
+        borderRadius:
+          '10px',
         display: 'flex',
-        flexDirection: 'column',
+        flexDirection:
+          'column',
         overflow: 'hidden',
         boxShadow:
           '0 18px 45px rgba(15, 23, 42, 0.18)',
@@ -530,18 +585,18 @@ export default function ChatModal({
       <div
         style={{
           backgroundColor:
-            '#fffdf9',
-          color: '#24313f',
+            '#f3f4f6',
+          color:
+            '#24313f',
           padding:
-            '11px 12px 10px',
+            '11px 12px',
           display: 'flex',
           justifyContent:
             'space-between',
-          alignItems: 'center',
+          alignItems:
+            'center',
           borderBottom:
-            '1px solid #e6e9ee',
-          borderTop:
-            '4px solid #2f6b5f'
+            '1px solid #dde2e7'
         }}
       >
         <div
@@ -573,9 +628,9 @@ export default function ChatModal({
               width: '34px',
               height: '34px',
               borderRadius:
-                '9px',
+                '8px',
               backgroundColor:
-                '#eef2f1',
+                '#ffffff',
               display: 'flex',
               alignItems:
                 'center',
@@ -584,7 +639,7 @@ export default function ChatModal({
               overflow: 'hidden',
               flexShrink: 0,
               border:
-                '1px solid #d7dfdc'
+                '1px solid #d2d8de'
             }}
           >
             {otherUser?.avatar_url ? (
@@ -612,71 +667,28 @@ export default function ChatModal({
             )}
           </div>
 
-          <div
+          <h3
             style={{
-              minWidth: 0
+              margin: 0,
+              fontSize:
+                '14px',
+              fontWeight:
+                '700',
+              color:
+                '#25313d',
+              whiteSpace:
+                'nowrap',
+              overflow:
+                'hidden',
+              textOverflow:
+                'ellipsis',
+              maxWidth:
+                '230px'
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                alignItems:
-                  'center',
-                gap: '6px',
-                minWidth: 0
-              }}
-            >
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize:
-                    '14px',
-                  fontWeight:
-                    '700',
-                  color:
-                    '#24313f',
-                  whiteSpace:
-                    'nowrap',
-                  overflow:
-                    'hidden',
-                  textOverflow:
-                    'ellipsis',
-                  maxWidth:
-                    '200px'
-                }}
-              >
-                {otherUser?.pseudo ||
-                  'Discussion'}
-              </h3>
-
-              <span
-                style={{
-                  width: '6px',
-                  height: '6px',
-                  borderRadius:
-                    '50%',
-                  backgroundColor:
-                    '#7aa89e',
-                  flexShrink: 0
-                }}
-              />
-            </div>
-
-            <span
-              style={{
-                display: 'block',
-                marginTop: '1px',
-                fontSize:
-                  '10px',
-                color:
-                  '#7a8794',
-                letterSpacing:
-                  '0.15px'
-              }}
-            >
-              Échange autour de l’annonce
-            </span>
-          </div>
+            {otherUser?.pseudo ||
+              'Discussion'}
+          </h3>
         </div>
 
         <button
@@ -684,17 +696,23 @@ export default function ChatModal({
           aria-label="Fermer la conversation"
           style={{
             background:
-              '#f6f7f8',
+              '#ffffff',
             border:
-              '1px solid #e1e5e9',
-            color: '#64707c',
-            fontSize: '15px',
-            cursor: 'pointer',
-            width: '30px',
-            height: '30px',
+              '1px solid #d8dde2',
+            color:
+              '#65717c',
+            fontSize:
+              '15px',
+            cursor:
+              'pointer',
+            width:
+              '30px',
+            height:
+              '30px',
             borderRadius:
-              '8px',
-            display: 'flex',
+              '7px',
+            display:
+              'flex',
             alignItems:
               'center',
             justifyContent:
@@ -707,22 +725,73 @@ export default function ChatModal({
         </button>
       </div>
 
-      {/* CONTEXTE */}
+      {/* TITRE DE L'ANNONCE */}
       <div
         style={{
           padding:
-            '7px 12px',
+            '9px 13px',
           backgroundColor:
-            '#f7faf8',
+            '#fafafa',
           borderBottom:
-            '1px solid #e7ece9',
-          color: '#5f6d68',
-          fontSize: '10px',
-          lineHeight: '1.35'
+            '1px solid #e6e9ec'
         }}
       >
-        Messagerie privée TrocTruc · annonce #{annonceId}
+        <div
+          style={{
+            fontSize:
+              '10px',
+            color:
+              '#8a949e',
+            marginBottom:
+              '2px'
+          }}
+        >
+          Annonce
+        </div>
+
+        <div
+          style={{
+            fontSize:
+              '12px',
+            fontWeight:
+              '700',
+            color:
+              '#35414d',
+            whiteSpace:
+              'nowrap',
+            overflow:
+              'hidden',
+            textOverflow:
+              'ellipsis'
+          }}
+        >
+          {annonceTitle}
+        </div>
       </div>
+
+      {/* MESSAGE UTILISATEUR BLOQUÉ */}
+      {isBlocked && (
+        <div
+          style={{
+            padding:
+              '8px 12px',
+            backgroundColor:
+              '#fff7ed',
+            color:
+              '#9a3412',
+            fontSize:
+              '11px',
+            textAlign:
+              'center',
+            borderBottom:
+              '1px solid #fed7aa',
+            fontWeight:
+              '600'
+          }}
+        >
+          🚫 Utilisateur bloqué — historique consultable, envoi désactivé
+        </div>
+      )}
 
       {/* MESSAGES */}
       <div
@@ -730,13 +799,16 @@ export default function ChatModal({
           flex: 1,
           padding:
             '16px 14px',
-          overflowY: 'auto',
-          display: 'flex',
+          overflowY:
+            'auto',
+          display:
+            'flex',
           flexDirection:
             'column',
-          gap: '12px',
+          gap:
+            '12px',
           backgroundColor:
-            '#fbfaf7'
+            '#fbfbfa'
         }}
       >
         {loading ? (
@@ -825,9 +897,7 @@ export default function ChatModal({
                         marginBottom:
                           '4px',
                         fontWeight:
-                          '600',
-                        letterSpacing:
-                          '0.1px'
+                          '600'
                       }}
                     >
                       {
@@ -918,16 +988,23 @@ export default function ChatModal({
             '10px',
           borderTop:
             '1px solid #e1e5e9',
-          display: 'flex',
-          gap: '8px',
+          display:
+            'flex',
+          gap:
+            '8px',
           backgroundColor:
-            '#fffdf9'
+            '#ffffff'
         }}
       >
         <input
           type="text"
-          placeholder="Écrire un message..."
+          placeholder={
+            isBlocked
+              ? 'Utilisateur bloqué'
+              : 'Écrire un message...'
+          }
           value={newMessage}
+          disabled={isBlocked}
           onChange={(e) =>
             setNewMessage(
               e.target.value
@@ -941,26 +1018,36 @@ export default function ChatModal({
               '7px',
             border:
               '1px solid #cfd6dc',
-            outline: 'none',
+            outline:
+              'none',
             fontSize:
               '13px',
             backgroundColor:
-              '#ffffff',
+              isBlocked
+                ? '#f1f5f9'
+                : '#ffffff',
             color:
-              '#24313f'
+              '#24313f',
+            cursor:
+              isBlocked
+                ? 'not-allowed'
+                : 'text'
           }}
         />
 
         <button
           type="submit"
           disabled={
+            isBlocked ||
             !newMessage.trim()
           }
           style={{
             backgroundColor:
               '#2f6b5f',
-            color: 'white',
-            border: 'none',
+            color:
+              'white',
+            border:
+              'none',
             padding:
               '9px 13px',
             borderRadius:
@@ -970,13 +1057,15 @@ export default function ChatModal({
             fontSize:
               '12px',
             cursor:
+              !isBlocked &&
               newMessage.trim()
                 ? 'pointer'
                 : 'default',
             opacity:
+              !isBlocked &&
               newMessage.trim()
                 ? 1
-                : 0.45
+                : 0.4
           }}
         >
           Envoyer
