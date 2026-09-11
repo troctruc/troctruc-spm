@@ -50,10 +50,6 @@ export default function ChatModal({
     scrollToBottom()
   }, [messages])
 
-  /**
-   * Marque comme lus tous les messages
-   * reçus dans la conversation actuellement ouverte.
-   */
   async function markMessagesAsRead(
     activeConversationId: string
   ) {
@@ -104,10 +100,6 @@ export default function ChatModal({
     }
   }
 
-  /**
-   * Initialisation de la conversation,
-   * récupération des messages et du profil.
-   */
   useEffect(() => {
     let isMounted = true
 
@@ -120,10 +112,6 @@ export default function ChatModal({
         let activeConvId = initialConvId
         let interlocutorId: string | null = null
 
-        /**
-         * 1. Recherche ou création
-         * de la conversation
-         */
         if (!activeConvId && annonceId) {
           const {
             data: existingConvs,
@@ -225,9 +213,6 @@ export default function ChatModal({
             sellerId
         }
 
-        /**
-         * 2. Profil de l'interlocuteur
-         */
         if (
           interlocutorId &&
           isMounted
@@ -256,9 +241,6 @@ export default function ChatModal({
           }
         }
 
-        /**
-         * 3. Messages
-         */
         if (
           activeConvId &&
           isMounted
@@ -293,10 +275,6 @@ export default function ChatModal({
             )
           }
 
-          /**
-           * Dès que le chat est ouvert,
-           * les messages reçus deviennent lus.
-           */
           await markMessagesAsRead(
             activeConvId
           )
@@ -325,12 +303,6 @@ export default function ChatModal({
     initialConvId
   ])
 
-  /**
-   * Temps réel Supabase
-   *
-   * - INSERT : nouveau message
-   * - UPDATE : passage Envoyé -> Lu
-   */
   useEffect(() => {
     if (!conversationId) return
 
@@ -369,12 +341,6 @@ export default function ChatModal({
             ])
           })
 
-          /**
-           * Si le message reçu vient
-           * de l'autre utilisateur,
-           * et que le chat est ouvert,
-           * on le marque immédiatement lu.
-           */
           if (
             incomingMessage.sender_id !==
             currentUserId
@@ -494,9 +460,6 @@ export default function ChatModal({
       })
     }
 
-    /**
-     * Notification push
-     */
     try {
       const pushResponse =
         await fetch(
@@ -544,20 +507,21 @@ export default function ChatModal({
     <div
       style={{
         position: 'fixed',
-        bottom: '20px',
-        right: '20px',
-        width: '360px',
-        height: '490px',
-        backgroundColor: 'white',
-        borderRadius: '12px',
+        bottom: '16px',
+        right: '16px',
+        width: 'min(380px, calc(100vw - 24px))',
+        height: '500px',
+        maxHeight: 'calc(100vh - 32px)',
+        backgroundColor: '#fffdf9',
+        borderRadius: '10px',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
         boxShadow:
-          '0 5px 25px rgba(0,0,0,0.2)',
+          '0 18px 45px rgba(15, 23, 42, 0.18)',
         zIndex: 2000,
         border:
-          '1px solid #cbd5e1',
+          '1px solid #d8dee6',
         fontFamily:
           'system-ui, -apple-system, sans-serif'
       }}
@@ -566,14 +530,18 @@ export default function ChatModal({
       <div
         style={{
           backgroundColor:
-            '#1e293b',
-          color: 'white',
+            '#fffdf9',
+          color: '#24313f',
           padding:
-            '10px 14px',
+            '11px 12px 10px',
           display: 'flex',
           justifyContent:
             'space-between',
-          alignItems: 'center'
+          alignItems: 'center',
+          borderBottom:
+            '1px solid #e6e9ee',
+          borderTop:
+            '4px solid #2f6b5f'
         }}
       >
         <div
@@ -588,6 +556,7 @@ export default function ChatModal({
             alignItems:
               'center',
             gap: '10px',
+            minWidth: 0,
             cursor:
               otherUser?.id
                 ? 'pointer'
@@ -601,12 +570,12 @@ export default function ChatModal({
         >
           <div
             style={{
-              width: '32px',
-              height: '32px',
+              width: '34px',
+              height: '34px',
               borderRadius:
-                '50%',
+                '9px',
               backgroundColor:
-                '#334155',
+                '#eef2f1',
               display: 'flex',
               alignItems:
                 'center',
@@ -615,7 +584,7 @@ export default function ChatModal({
               overflow: 'hidden',
               flexShrink: 0,
               border:
-                '1px solid #64748b'
+                '1px solid #d7dfdc'
             }}
           >
             {otherUser?.avatar_url ? (
@@ -643,72 +612,131 @@ export default function ChatModal({
             )}
           </div>
 
-          <div>
-            <h3
+          <div
+            style={{
+              minWidth: 0
+            }}
+          >
+            <div
               style={{
-                margin: 0,
-                fontSize:
-                  '14px',
-                fontWeight:
-                  '600',
-                color:
-                  '#f8fafc',
-                whiteSpace:
-                  'nowrap',
-                overflow:
-                  'hidden',
-                textOverflow:
-                  'ellipsis',
-                maxWidth:
-                  '200px'
+                display: 'flex',
+                alignItems:
+                  'center',
+                gap: '6px',
+                minWidth: 0
               }}
             >
-              {otherUser?.pseudo ||
-                'Discussion'}
-            </h3>
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize:
+                    '14px',
+                  fontWeight:
+                    '700',
+                  color:
+                    '#24313f',
+                  whiteSpace:
+                    'nowrap',
+                  overflow:
+                    'hidden',
+                  textOverflow:
+                    'ellipsis',
+                  maxWidth:
+                    '200px'
+                }}
+              >
+                {otherUser?.pseudo ||
+                  'Discussion'}
+              </h3>
+
+              <span
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius:
+                    '50%',
+                  backgroundColor:
+                    '#7aa89e',
+                  flexShrink: 0
+                }}
+              />
+            </div>
 
             <span
               style={{
+                display: 'block',
+                marginTop: '1px',
                 fontSize:
-                  '11px',
+                  '10px',
                 color:
-                  '#94a3b8'
+                  '#7a8794',
+                letterSpacing:
+                  '0.15px'
               }}
             >
-              {otherUser?.pseudo
-                ? 'Voir profil'
-                : 'En ligne'}
+              Échange autour de l’annonce
             </span>
           </div>
         </div>
 
         <button
           onClick={onClose}
+          aria-label="Fermer la conversation"
           style={{
-            background: 'none',
-            border: 'none',
-            color: '#94a3b8',
-            fontSize: '18px',
+            background:
+              '#f6f7f8',
+            border:
+              '1px solid #e1e5e9',
+            color: '#64707c',
+            fontSize: '15px',
             cursor: 'pointer',
-            padding: '4px 8px'
+            width: '30px',
+            height: '30px',
+            borderRadius:
+              '8px',
+            display: 'flex',
+            alignItems:
+              'center',
+            justifyContent:
+              'center',
+            padding: 0,
+            flexShrink: 0
           }}
         >
           ✕
         </button>
       </div>
 
+      {/* CONTEXTE */}
+      <div
+        style={{
+          padding:
+            '7px 12px',
+          backgroundColor:
+            '#f7faf8',
+          borderBottom:
+            '1px solid #e7ece9',
+          color: '#5f6d68',
+          fontSize: '10px',
+          lineHeight: '1.35'
+        }}
+      >
+        Messagerie privée TrocTruc · annonce #{annonceId}
+      </div>
+
       {/* MESSAGES */}
       <div
         style={{
           flex: 1,
-          padding: '15px',
+          padding:
+            '16px 14px',
           overflowY: 'auto',
           display: 'flex',
           flexDirection:
             'column',
-          gap: '10px',
+          gap: '12px',
           backgroundColor:
-            '#f8fafc'
+            '#fbfaf7'
         }}
       >
         {loading ? (
@@ -717,7 +745,7 @@ export default function ChatModal({
               textAlign:
                 'center',
               color:
-                '#94a3b8',
+                '#8a949d',
               fontSize:
                 '13px',
               marginTop:
@@ -727,24 +755,43 @@ export default function ChatModal({
             Chargement...
           </p>
         ) : messages.length === 0 ? (
-          <p
+          <div
             style={{
               textAlign:
                 'center',
+              margin:
+                '28px auto 0',
+              maxWidth:
+                '250px',
               color:
-                '#94a3b8',
-              fontSize:
-                '13px',
-              marginTop:
-                '20px',
-              fontStyle:
-                'italic'
+                '#76818a'
             }}
           >
-            Aucun message pour l'instant.
-            <br />
-            Engagez la conversation !
-          </p>
+            <div
+              style={{
+                fontSize:
+                  '22px',
+                marginBottom:
+                  '8px'
+              }}
+            >
+              ✉️
+            </div>
+
+            <p
+              style={{
+                margin: 0,
+                fontSize:
+                  '13px',
+                lineHeight:
+                  '1.45'
+              }}
+            >
+              Aucun message pour l’instant.
+              <br />
+              Vous pouvez démarrer l’échange ici.
+            </p>
+          </div>
         ) : (
           messages.map((msg) => {
             const isMe =
@@ -764,7 +811,7 @@ export default function ChatModal({
                       ? 'flex-end'
                       : 'flex-start',
                   maxWidth:
-                    '78%'
+                    '82%'
                 }}
               >
                 {!isMe &&
@@ -772,13 +819,15 @@ export default function ChatModal({
                     <span
                       style={{
                         fontSize:
-                          '11px',
+                          '10px',
                         color:
-                          '#64748b',
+                          '#7b8790',
                         marginBottom:
-                          '2px',
+                          '4px',
                         fontWeight:
-                          '500'
+                          '600',
+                        letterSpacing:
+                          '0.1px'
                       }}
                     >
                       {
@@ -791,30 +840,24 @@ export default function ChatModal({
                   style={{
                     backgroundColor:
                       isMe
-                        ? '#2563eb'
-                        : '#e2e8f0',
+                        ? '#e7f0ed'
+                        : '#ffffff',
                     color:
-                      isMe
-                        ? '#ffffff'
-                        : '#1e293b',
+                      '#26323d',
                     padding:
-                      '8px 12px',
+                      '9px 11px',
                     borderRadius:
-                      '12px',
+                      '8px',
                     fontSize:
                       '13px',
                     lineHeight:
-                      '1.4',
-                    borderBottomRightRadius:
+                      '1.45',
+                    border:
                       isMe
-                        ? '2px'
-                        : '12px',
-                    borderBottomLeftRadius:
-                      isMe
-                        ? '12px'
-                        : '2px',
+                        ? '1px solid #c7d9d4'
+                        : '1px solid #dfe4e8',
                     boxShadow:
-                      '0 1px 2px rgba(0,0,0,0.05)',
+                      '0 1px 2px rgba(15, 23, 42, 0.04)',
                     wordBreak:
                       'break-word'
                   }}
@@ -825,14 +868,11 @@ export default function ChatModal({
                 <span
                   style={{
                     fontSize:
-                      '10px',
+                      '9px',
                     color:
-                      msg.read_at &&
-                      isMe
-                        ? '#2563eb'
-                        : '#94a3b8',
+                      '#8b949d',
                     marginTop:
-                      '2px',
+                      '3px',
                     display:
                       'block',
                     textAlign:
@@ -874,18 +914,19 @@ export default function ChatModal({
       <form
         onSubmit={sendMessage}
         style={{
-          padding: '10px',
+          padding:
+            '10px',
           borderTop:
-            '1px solid #e2e8f0',
+            '1px solid #e1e5e9',
           display: 'flex',
           gap: '8px',
           backgroundColor:
-            'white'
+            '#fffdf9'
         }}
       >
         <input
           type="text"
-          placeholder="Votre message..."
+          placeholder="Écrire un message..."
           value={newMessage}
           onChange={(e) =>
             setNewMessage(
@@ -895,16 +936,18 @@ export default function ChatModal({
           style={{
             flex: 1,
             padding:
-              '8px 12px',
+              '9px 11px',
             borderRadius:
-              '8px',
+              '7px',
             border:
-              '1px solid #cbd5e1',
+              '1px solid #cfd6dc',
             outline: 'none',
             fontSize:
               '13px',
             backgroundColor:
-              '#ffffff'
+              '#ffffff',
+            color:
+              '#24313f'
           }}
         />
 
@@ -915,17 +958,17 @@ export default function ChatModal({
           }
           style={{
             backgroundColor:
-              '#2563eb',
+              '#2f6b5f',
             color: 'white',
             border: 'none',
             padding:
-              '8px 14px',
+              '9px 13px',
             borderRadius:
-              '8px',
+              '7px',
             fontWeight:
-              '600',
+              '700',
             fontSize:
-              '13px',
+              '12px',
             cursor:
               newMessage.trim()
                 ? 'pointer'
@@ -933,7 +976,7 @@ export default function ChatModal({
             opacity:
               newMessage.trim()
                 ? 1
-                : 0.6
+                : 0.45
           }}
         >
           Envoyer
