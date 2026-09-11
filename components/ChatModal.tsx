@@ -30,12 +30,8 @@ export default function ChatModal({
 
   const [loading, setLoading] = useState(true)
   const [otherUser, setOtherUser] = useState<any>(null)
-
   const [annonceTitle, setAnnonceTitle] =
     useState('Annonce')
-
-  const [annonceImage, setAnnonceImage] =
-    useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -87,7 +83,6 @@ export default function ChatModal({
         'Erreur marquage messages comme lus :',
         error
       )
-
       return
     }
 
@@ -119,16 +114,14 @@ export default function ChatModal({
 
       try {
         /*
-         * TITRE + PHOTO DE L'ANNONCE
+         * TITRE DE L'ANNONCE
          */
         if (annonceId) {
           const {
             data: annonceData
           } = await supabase
             .from('annonces')
-            .select(
-              'titre, photos, image_url, image_urls'
-            )
+            .select('titre')
             .eq(
               'id',
               annonceId
@@ -137,63 +130,10 @@ export default function ChatModal({
 
           if (
             isMounted &&
-            annonceData
+            annonceData?.titre
           ) {
-            if (annonceData.titre) {
-              setAnnonceTitle(
-                annonceData.titre
-              )
-            }
-
-            let firstImage: string | null = null
-
-            if (
-              Array.isArray(
-                annonceData.photos
-              ) &&
-              annonceData.photos.length > 0
-            ) {
-              firstImage =
-                annonceData.photos[0]
-            } else if (
-              annonceData.image_url
-            ) {
-              firstImage =
-                annonceData.image_url.includes(
-                  ','
-                )
-                  ? annonceData.image_url
-                      .split(',')[0]
-                      .trim()
-                  : annonceData.image_url
-            } else if (
-              annonceData.image_urls
-            ) {
-              if (
-                Array.isArray(
-                  annonceData.image_urls
-                )
-              ) {
-                firstImage =
-                  annonceData.image_urls[0] ||
-                  null
-              } else if (
-                typeof annonceData.image_urls ===
-                'string'
-              ) {
-                firstImage =
-                  annonceData.image_urls.includes(
-                    ','
-                  )
-                    ? annonceData.image_urls
-                        .split(',')[0]
-                        .trim()
-                    : annonceData.image_urls
-              }
-            }
-
-            setAnnonceImage(
-              firstImage
+            setAnnonceTitle(
+              annonceData.titre
             )
           }
         }
@@ -203,7 +143,6 @@ export default function ChatModal({
 
         /*
          * RECHERCHE OU CRÉATION
-         * DE LA CONVERSATION
          */
         if (!activeConvId && annonceId) {
           const {
@@ -307,7 +246,7 @@ export default function ChatModal({
         }
 
         /*
-         * PROFIL DE L'INTERLOCUTEUR
+         * PROFIL
          */
         if (
           interlocutorId &&
@@ -412,7 +351,6 @@ export default function ChatModal({
       .channel(
         `chat_${conversationId}`
       )
-
       .on(
         'postgres_changes',
         {
@@ -453,7 +391,6 @@ export default function ChatModal({
           }
         }
       )
-
       .on(
         'postgres_changes',
         {
@@ -480,7 +417,6 @@ export default function ChatModal({
           )
         }
       )
-
       .subscribe()
 
     return () => {
@@ -567,7 +503,7 @@ export default function ChatModal({
     }
 
     /*
-     * NOTIFICATION PUSH
+     * PUSH
      */
     try {
       const pushResponse =
@@ -639,7 +575,7 @@ export default function ChatModal({
         zIndex:
           2000,
         border:
-          '1px solid #dfe3e6',
+          '1px solid #d7dce0',
         fontFamily:
           'system-ui, -apple-system, sans-serif'
       }}
@@ -648,7 +584,7 @@ export default function ChatModal({
       <div
         style={{
           backgroundColor:
-            '#f5f6f7',
+            '#e9ecef',
           padding:
             '13px 14px',
           display:
@@ -658,7 +594,7 @@ export default function ChatModal({
           alignItems:
             'center',
           borderBottom:
-            '1px solid #e2e5e8'
+            '1px solid #d2d7dc'
         }}
       >
         <div
@@ -709,7 +645,7 @@ export default function ChatModal({
               flexShrink:
                 0,
               border:
-                '1px solid #d7dce0'
+                '1px solid #cfd5da'
             }}
           >
             {otherUser?.avatar_url ? (
@@ -739,51 +675,29 @@ export default function ChatModal({
             )}
           </div>
 
-          <div
+          <h3
             style={{
-              minWidth:
-                0
+              margin:
+                0,
+              fontSize:
+                '14px',
+              fontWeight:
+                '700',
+              color:
+                '#24313f',
+              whiteSpace:
+                'nowrap',
+              overflow:
+                'hidden',
+              textOverflow:
+                'ellipsis',
+              maxWidth:
+                '255px'
             }}
           >
-            <h3
-              style={{
-                margin:
-                  0,
-                fontSize:
-                  '14px',
-                fontWeight:
-                  '700',
-                color:
-                  '#24313f',
-                whiteSpace:
-                  'nowrap',
-                overflow:
-                  'hidden',
-                textOverflow:
-                  'ellipsis',
-                maxWidth:
-                  '255px'
-              }}
-            >
-              {otherUser?.pseudo ||
-                'Discussion'}
-            </h3>
-
-            <span
-              style={{
-                display:
-                  'block',
-                marginTop:
-                  '2px',
-                fontSize:
-                  '10px',
-                color:
-                  '#87919a'
-              }}
-            >
-              Messagerie TrocTruc
-            </span>
-          </div>
+            {otherUser?.pseudo ||
+              'Discussion'}
+          </h3>
         </div>
 
         <button
@@ -791,9 +705,9 @@ export default function ChatModal({
           aria-label="Fermer la conversation"
           style={{
             background:
-              'transparent',
+              '#f8f9fa',
             border:
-              '1px solid #d9dde1',
+              '1px solid #cfd5da',
             color:
               '#66727d',
             width:
@@ -822,134 +736,59 @@ export default function ChatModal({
         </button>
       </div>
 
-      {/* CARTE ANNONCE */}
-      <div
+      {/* LIEN VERS L'ANNONCE */}
+      <button
+        type="button"
+        onClick={() =>
+          router.push(
+            `/annonces/${annonceId}`
+          )
+        }
         style={{
-          padding:
-            '10px 12px',
-          backgroundColor:
-            '#ffffff',
+          border:
+            'none',
           borderBottom:
-            '1px solid #e7eaed'
+            '1px solid #e3e6e8',
+          backgroundColor:
+            '#f8f9fa',
+          padding:
+            '9px 14px',
+          textAlign:
+            'left',
+          cursor:
+            'pointer',
+          width:
+            '100%'
         }}
       >
-        <div
+        <span
           style={{
             display:
-              'flex',
-            alignItems:
-              'center',
-            gap:
-              '10px',
-            padding:
-              '7px 9px',
-            backgroundColor:
-              '#f8faf9',
-            border:
-              '1px solid #e4e9e6',
-            borderRadius:
-              '9px'
+              'inline',
+            fontSize:
+              '11px',
+            color:
+              '#7b858e'
           }}
         >
-          <div
-            style={{
-              width:
-                '44px',
-              height:
-                '44px',
-              borderRadius:
-                '8px',
-              backgroundColor:
-                '#eef3f1',
-              display:
-                'flex',
-              alignItems:
-                'center',
-              justifyContent:
-                'center',
-              flexShrink:
-                0,
-              overflow:
-                'hidden',
-              border:
-                '1px solid #e0e6e3'
-            }}
-          >
-            {annonceImage ? (
-              <img
-                src={annonceImage}
-                alt={annonceTitle}
-                style={{
-                  width:
-                    '100%',
-                  height:
-                    '100%',
-                  objectFit:
-                    'cover'
-                }}
-              />
-            ) : (
-              <span
-                style={{
-                  fontSize:
-                    '16px'
-                }}
-              >
-                🏷️
-              </span>
-            )}
-          </div>
+          À propos de :{' '}
+        </span>
 
-          <div
-            style={{
-              minWidth:
-                0,
-              flex:
-                1
-            }}
-          >
-            <div
-              style={{
-                fontSize:
-                  '9px',
-                color:
-                  '#87928b',
-                textTransform:
-                  'uppercase',
-                letterSpacing:
-                  '0.4px',
-                marginBottom:
-                  '3px',
-                fontWeight:
-                  '700'
-              }}
-            >
-              Annonce
-            </div>
+        <span
+          style={{
+            fontSize:
+              '11px',
+            fontWeight:
+              '700',
+            color:
+              '#35414d'
+          }}
+        >
+          {annonceTitle}
+        </span>
+      </button>
 
-            <div
-              style={{
-                fontSize:
-                  '12px',
-                color:
-                  '#34413b',
-                fontWeight:
-                  '700',
-                whiteSpace:
-                  'nowrap',
-                overflow:
-                  'hidden',
-                textOverflow:
-                  'ellipsis'
-              }}
-            >
-              {annonceTitle}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* UTILISATEUR BLOQUÉ */}
+      {/* BLOQUÉ */}
       {isBlocked && (
         <div
           style={{
