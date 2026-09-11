@@ -7,6 +7,8 @@ import CovoiturageNavMenu from '@/components/CovoiturageNavMenu'
 import PushNotificationManager from '@/components/PushNotificationManager'
 import InstallPrompt from '@/components/InstallPrompt'
 
+const PAGE_SIZE = 24
+
 export default function Home() {
   const router = useRouter()
 
@@ -22,6 +24,11 @@ export default function Home() {
 
   // Filtre "Nouvelles" désactivé par défaut
   const [showNewOnly, setShowNewOnly] = useState(false)
+
+  // Pagination : 24 annonces par chargement
+  const [totalAnnonces, setTotalAnnonces] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [authReady, setAuthReady] = useState(false)
 
   // Nombre réel de messages non lus
   const [unreadCount, setUnreadCount] = useState(0)
@@ -79,15 +86,17 @@ export default function Home() {
 
       setUser(user)
 
-      if (user) {
-        if (user.email === 'contact.troctruc@gmail.com') {
-          setIsAdmin(true)
-        }
+      const admin =
+        user?.email ===
+        'contact.troctruc@gmail.com'
 
+      setIsAdmin(admin)
+
+      if (user) {
         await checkUnreadMessages(user.id)
       }
 
-      fetchAnnonces()
+      setAuthReady(true)
     }
 
     init()
@@ -245,12 +254,27 @@ export default function Home() {
     updateAppBadge()
   }, [unreadCount])
 
-  async function fetchAnnonces() {
-    setLoading(true)
+  async function fetchAnnonces(
+    reset = true
+  ) {
+    if (reset) {
+      setLoading(true)
+    } else {
+      setLoadingMore(true)
+    }
 
-    const query = supabase
+    const from = reset
+      ? 0
+      : annonces.length
+
+    const to =
+      from + PAGE_SIZE - 1
+
+    let query = supabase
       .from('annonces')
-      .select('*')
+      .select('*', {
+        count: 'exact'
+      })
       .order(
         'created_at',
         {
@@ -258,17 +282,140 @@ export default function Home() {
         }
       )
 
+    // Les visiteurs ne voient pas les annonces en attente.
+    if (!isAdmin) {
+      query = query.or(
+        'status.neq.en attente,status.is.null'
+      )
+    }
+
+    if (
+      selectedCategory !==
+      'Tous'
+    ) {
+      query = query.eq(
+        'categorie',
+        selectedCategory
+      )
+    }
+
+    if (
+      selectedTypeOffre !==
+      'Tous'
+    ) {
+      query = query.ilike(
+        'description',
+        `%Type :%${selectedTypeOffre}%`
+      )
+    }
+
+    if (
+      selectedLocation !==
+      'Tous'
+    ) {
+      query = query.ilike(
+        'description',
+        `%Localisation :%${selectedLocation}%`
+      )
+    }
+
+    if (showNewOnly) {
+      const fortyEightHoursAgo =
+        new Date(
+          Date.now() -
+            48 *
+              60 *
+              60 *
+              1000
+        ).toISOString()
+
+      query = query.gte(
+        'created_at',
+        fortyEightHoursAgo
+      )
+    }
+
+    const cleanSearch =
+      searchQuery
+        .trim()
+        .replace(
+          /[(),]/g,
+          ' '
+        )
+        .replace(
+          /\s+/g,
+          ' '
+        )
+
+    if (cleanSearch) {
+      query = query.or(
+        `titre.ilike.%${cleanSearch}%,description.ilike.%${cleanSearch}%`
+      )
+    }
+
     const {
       data,
-      error
-    } = await query
+      error,
+      count
+    } = await query.range(
+      from,
+      to
+    )
 
-    if (!error && data) {
-      setAnnonces(data)
+    if (error) {
+      console.error(
+        'Erreur chargement annonces :',
+        error
+      )
+    } else {
+      const newItems =
+        data || []
+
+      setTotalAnnonces(
+        count || 0
+      )
+
+      setAnnonces(
+        reset
+          ? newItems
+          : [
+              ...annonces,
+              ...newItems
+            ]
+      )
     }
 
     setLoading(false)
+    setLoadingMore(false)
   }
+
+  useEffect(() => {
+    if (!authReady) return
+
+    const timer =
+      window.setTimeout(
+        () => {
+          fetchAnnonces(true)
+        },
+        searchQuery
+          ? 300
+          : 0
+      )
+
+    return () => {
+      window.clearTimeout(
+        timer
+      )
+    }
+  }, [
+    authReady,
+    isAdmin,
+    searchQuery,
+    selectedCategory,
+    selectedTypeOffre,
+    selectedLocation,
+    showNewOnly
+  ])
 
   async function handleValidate(
     e: React.MouseEvent,
@@ -296,7 +443,7 @@ export default function Home() {
         'Annonce validée avec succès !'
       )
 
-      fetchAnnonces()
+      fetchAnnonces(true)
     }
   }
 
@@ -329,7 +476,7 @@ export default function Home() {
       )
     } else {
       alert('Annonce supprimée.')
-      fetchAnnonces()
+      fetchAnnonces(true)
     }
   }
 
@@ -353,112 +500,7 @@ export default function Home() {
     setSelectedCategory(cat)
   }
 
-  const filteredAnnonces =
-    annonces.filter((item) => {
-      const matchQuery =
-        item.titre
-          .toLowerCase()
-          .includes(
-            searchQuery.toLowerCase()
-          ) ||
-        item.description
-          .toLowerCase()
-          .includes(
-            searchQuery.toLowerCase()
-          )
-
-      const matchCat =
-        selectedCategory === 'Tous' ||
-        item.categorie === selectedCategory
-
-      let itemTypeOffre = 'vente'
-
-      if (
-        item.description &&
-        item.description.includes('Type :')
-      ) {
-        const typePart =
-          item.description.split('Type :')[1]
-
-        if (typePart) {
-          const rawType =
-            typePart
-              .split('|')[0]
-              .trim()
-              .toLowerCase()
-
-          if (rawType.includes('don')) {
-            itemTypeOffre = 'don'
-          } else if (
-            rawType.includes('troc')
-          ) {
-            itemTypeOffre = 'troc'
-          } else if (
-            rawType.includes('recherche')
-          ) {
-            itemTypeOffre = 'recherche'
-          } else if (
-            rawType.includes('vente')
-          ) {
-            itemTypeOffre = 'vente'
-          }
-        }
-      }
-
-      const matchTypeOffre =
-        selectedTypeOffre === 'Tous' ||
-        itemTypeOffre === selectedTypeOffre
-
-      let itemLoc = 'Saint-Pierre'
-
-      if (
-        item.description &&
-        item.description.includes(
-          'Localisation :'
-        )
-      ) {
-        const locPart =
-          item.description.split(
-            'Localisation :'
-          )[1]
-
-        if (locPart) {
-          itemLoc =
-            locPart
-              .split('\n')[0]
-              .split('|')[0]
-              .trim()
-        }
-      }
-
-      const matchLoc =
-        selectedLocation === 'Tous' ||
-        itemLoc === selectedLocation
-
-      const isVisibleForUser =
-        isAdmin ||
-        item.status !== 'en attente'
-
-      const isNew =
-        item.created_at &&
-        Date.now() -
-          new Date(
-            item.created_at
-          ).getTime() <
-          48 * 60 * 60 * 1000
-
-      const matchNew =
-        !showNewOnly || isNew
-
-      return (
-        matchQuery &&
-        matchCat &&
-        matchTypeOffre &&
-        matchLoc &&
-        matchNew &&
-        isVisibleForUser
-      )
-    })
+  const filteredAnnonces = annonces
 
   return (
     <div
@@ -999,8 +1041,7 @@ export default function Home() {
             </div>
           )}
       </header>
-
-      {/* RECHERCHE ET FILTRES */}
+            {/* RECHERCHE ET FILTRES */}
       <div
         style={{
           maxWidth: '1000px',
@@ -1267,16 +1308,54 @@ export default function Home() {
           padding: '0 16px'
         }}
       >
-        <h2
+        <div
           style={{
-            fontSize: '20px',
-            color: '#2c3e50',
-            marginBottom: '20px'
+            display: 'flex',
+            alignItems:
+              'flex-end',
+            justifyContent:
+              'space-between',
+            gap: '12px',
+            marginBottom:
+              '20px',
+            flexWrap: 'wrap'
           }}
         >
-          Annonces à
-          Saint-Pierre-et-Miquelon
-        </h2>
+          <h2
+            style={{
+              fontSize: '20px',
+              color: '#2c3e50',
+              margin: 0
+            }}
+          >
+            Annonces à
+            Saint-Pierre-et-Miquelon
+          </h2>
+
+          {!loading &&
+            totalAnnonces > 0 && (
+              <span
+                style={{
+                  fontSize:
+                    '12px',
+                  color:
+                    '#7f8c8d'
+                }}
+              >
+                {Math.min(
+                  annonces.length,
+                  totalAnnonces
+                )}{' '}
+                sur{' '}
+                {totalAnnonces}{' '}
+                annonce
+                {totalAnnonces >
+                1
+                  ? 's'
+                  : ''}
+              </span>
+            )}
+        </div>
 
         {loading ? (
           <p
@@ -1305,250 +1384,361 @@ export default function Home() {
               : 'Aucune annonce trouvée pour le moment.'}
           </div>
         ) : (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns:
-                'repeat(auto-fill, minmax(220px, 1fr))',
-              gap: '20px'
-            }}
-          >
-            {filteredAnnonces.map(
-              (item) => {
-                let imageUrl = null
+          <>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns:
+                  'repeat(auto-fill, minmax(220px, 1fr))',
+                gap: '20px'
+              }}
+            >
+              {filteredAnnonces.map(
+                (item) => {
+                  let imageUrl = null
 
-                if (
-                  item.photos &&
-                  item.photos.length > 0
-                ) {
-                  imageUrl =
-                    item.photos[0]
-                } else if (
-                  item.image_url
-                ) {
-                  imageUrl =
-                    item.image_url.includes(
-                      ','
-                    )
-                      ? item.image_url.split(
-                          ','
-                        )[0]
-                      : item.image_url
-                } else if (
-                  item.image_urls
-                ) {
-                  imageUrl =
-                    item.image_urls.includes(
-                      ','
-                    )
-                      ? item.image_urls.split(
-                          ','
-                        )[0]
-                      : item.image_urls
-                }
-
-                let cardLocation =
-                  'Saint-Pierre'
-
-                if (
-                  item.description &&
-                  item.description.includes(
-                    'Localisation :'
-                  )
-                ) {
-                  const locPart =
-                    item.description.split(
-                      'Localisation :'
-                    )[1]
-
-                  if (locPart) {
-                    cardLocation =
-                      locPart
-                        .split('\n')[0]
-                        .split('|')[0]
-                        .trim()
-                  }
-                }
-
-                let cardType = 'vente'
-
-                if (
-                  item.description &&
-                  item.description.includes(
-                    'Type :'
-                  )
-                ) {
-                  const typePart =
-                    item.description.split(
-                      'Type :'
-                    )[1]
-
-                  if (typePart) {
-                    cardType =
-                      typePart
-                        .split('|')[0]
-                        .trim()
-                        .toLowerCase()
-                  }
-                }
-
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() =>
-                      router.push(
-                        `/annonces/${item.id}`
+                  if (
+                    item.photos &&
+                    item.photos.length > 0
+                  ) {
+                    imageUrl =
+                      item.photos[0]
+                  } else if (
+                    item.image_url
+                  ) {
+                    imageUrl =
+                      item.image_url.includes(
+                        ','
                       )
+                        ? item.image_url.split(
+                            ','
+                          )[0]
+                        : item.image_url
+                  } else if (
+                    item.image_urls
+                  ) {
+                    imageUrl =
+                      item.image_urls.includes(
+                        ','
+                      )
+                        ? item.image_urls.split(
+                            ','
+                          )[0]
+                        : item.image_urls
+                  }
+
+                  let cardLocation =
+                    'Saint-Pierre'
+
+                  if (
+                    item.description &&
+                    item.description.includes(
+                      'Localisation :'
+                    )
+                  ) {
+                    const locPart =
+                      item.description.split(
+                        'Localisation :'
+                      )[1]
+
+                    if (locPart) {
+                      cardLocation =
+                        locPart
+                          .split('\n')[0]
+                          .split('|')[0]
+                          .trim()
                     }
-                    style={{
-                      backgroundColor:
-                        'white',
-                      borderRadius:
-                        '10px',
-                      overflow: 'hidden',
-                      boxShadow:
-                        '0 2px 6px rgba(0,0,0,0.05)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection:
-                        'column',
-                      transition:
-                        'transform 0.2s',
-                      position:
-                        'relative'
-                    }}
-                  >
+                  }
+
+                  let cardType =
+                    'vente'
+
+                  if (
+                    item.description &&
+                    item.description.includes(
+                      'Type :'
+                    )
+                  ) {
+                    const typePart =
+                      item.description.split(
+                        'Type :'
+                      )[1]
+
+                    if (typePart) {
+                      cardType =
+                        typePart
+                          .split('|')[0]
+                          .trim()
+                          .toLowerCase()
+                    }
+                  }
+
+                  return (
                     <div
+                      key={item.id}
+                      onClick={() =>
+                        router.push(
+                          `/annonces/${item.id}`
+                        )
+                      }
                       style={{
-                        height: '160px',
                         backgroundColor:
-                          '#e2e8f0',
+                          'white',
+                        borderRadius:
+                          '10px',
+                        overflow:
+                          'hidden',
+                        boxShadow:
+                          '0 2px 6px rgba(0,0,0,0.05)',
+                        cursor:
+                          'pointer',
+                        display: 'flex',
+                        flexDirection:
+                          'column',
+                        transition:
+                          'transform 0.2s',
                         position:
                           'relative'
                       }}
                     >
-                      {imageUrl ? (
-                        <img
-                          src={imageUrl}
-                          alt={item.titre}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit:
-                              'cover'
-                          }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems:
-                              'center',
-                            justifyContent:
-                              'center',
-                            height: '100%',
-                            color:
-                              '#95a5a6',
-                            fontSize:
-                              '13px'
-                          }}
-                        >
-                          Aucune photo
-                        </div>
-                      )}
-
-                      <span
+                      <div
                         style={{
-                          position:
-                            'absolute',
-                          top: '10px',
-                          left: '10px',
+                          height:
+                            '160px',
                           backgroundColor:
-                            'rgba(0,0,0,0.6)',
-                          color: 'white',
-                          padding:
-                            '3px 8px',
-                          borderRadius:
-                            '4px',
-                          fontSize:
-                            '11px',
-                          fontWeight:
-                            'bold'
+                            '#e2e8f0',
+                          position:
+                            'relative'
                         }}
                       >
-                        {item.categorie}
-                      </span>
-
-                      <span
-                        style={{
-                          position:
-                            'absolute',
-                          bottom: '10px',
-                          left: '10px',
-                          backgroundColor:
-                            'rgba(30, 41, 59, 0.85)',
-                          color: 'white',
-                          padding:
-                            '2px 7px',
-                          borderRadius:
-                            '4px',
-                          fontSize:
-                            '10px',
-                          fontWeight:
-                            'bold'
-                        }}
-                      >
-                        📍 {cardLocation}
-                      </span>
-
-                      {isAdmin &&
-                        item.status ===
-                          'en attente' && (
-                          <span
+                        {imageUrl ? (
+                          <img
+                            src={
+                              imageUrl
+                            }
+                            alt={
+                              item.titre
+                            }
                             style={{
-                              position:
-                                'absolute',
-                              top: '10px',
-                              right:
-                                '10px',
-                              backgroundColor:
-                                '#e67e22',
-                              color: 'white',
-                              padding:
-                                '3px 8px',
-                              borderRadius:
-                                '4px',
+                              width:
+                                '100%',
+                              height:
+                                '100%',
+                              objectFit:
+                                'cover'
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              display:
+                                'flex',
+                              alignItems:
+                                'center',
+                              justifyContent:
+                                'center',
+                              height:
+                                '100%',
+                              color:
+                                '#95a5a6',
                               fontSize:
-                                '10px',
-                              fontWeight:
-                                'bold'
+                                '13px'
                             }}
                           >
-                            En attente
-                          </span>
+                            Aucune photo
+                          </div>
                         )}
-                    </div>
 
-                    <div
-                      style={{
-                        padding: '15px',
-                        display: 'flex',
-                        flexDirection:
-                          'column',
-                        justifyContent:
-                          'space-between',
-                        flex: 1
-                      }}
-                    >
-                      <div>
-                        <h3
+                        <span
+                          style={{
+                            position:
+                              'absolute',
+                            top: '10px',
+                            left:
+                              '10px',
+                            backgroundColor:
+                              'rgba(0,0,0,0.6)',
+                            color:
+                              'white',
+                            padding:
+                              '3px 8px',
+                            borderRadius:
+                              '4px',
+                            fontSize:
+                              '11px',
+                            fontWeight:
+                              'bold'
+                          }}
+                        >
+                          {item.categorie}
+                        </span>
+
+                        <span
+                          style={{
+                            position:
+                              'absolute',
+                            bottom:
+                              '10px',
+                            left:
+                              '10px',
+                            backgroundColor:
+                              'rgba(30, 41, 59, 0.85)',
+                            color:
+                              'white',
+                            padding:
+                              '2px 7px',
+                            borderRadius:
+                              '4px',
+                            fontSize:
+                              '10px',
+                            fontWeight:
+                              'bold'
+                          }}
+                        >
+                          📍 {cardLocation}
+                        </span>
+
+                        {isAdmin &&
+                          item.status ===
+                            'en attente' && (
+                            <span
+                              style={{
+                                position:
+                                  'absolute',
+                                top:
+                                  '10px',
+                                right:
+                                  '10px',
+                                backgroundColor:
+                                  '#e67e22',
+                                color:
+                                  'white',
+                                padding:
+                                  '3px 8px',
+                                borderRadius:
+                                  '4px',
+                                fontSize:
+                                  '10px',
+                                fontWeight:
+                                  'bold'
+                              }}
+                            >
+                              En attente
+                            </span>
+                          )}
+                      </div>
+
+                      <div
+                        style={{
+                          padding:
+                            '15px',
+                          display:
+                            'flex',
+                          flexDirection:
+                            'column',
+                          justifyContent:
+                            'space-between',
+                          flex: 1
+                        }}
+                      >
+                        <div>
+                          <h3
+                            style={{
+                              margin:
+                                '0 0 8px 0',
+                              fontSize:
+                                '15px',
+                              color:
+                                '#2c3e50',
+                              whiteSpace:
+                                'nowrap',
+                              overflow:
+                                'hidden',
+                              textOverflow:
+                                'ellipsis'
+                            }}
+                          >
+                            {item.titre}
+                          </h3>
+
+                          <div
+                            style={{
+                              display:
+                                'flex',
+                              justifyContent:
+                                'space-between',
+                              alignItems:
+                                'center',
+                              marginBottom:
+                                '8px'
+                            }}
+                          >
+                            <span
+                              style={{
+                                padding:
+                                  '2px 8px',
+                                borderRadius:
+                                  '4px',
+                                backgroundColor:
+                                  cardType ===
+                                  'don'
+                                    ? '#dcfce7'
+                                    : cardType ===
+                                        'troc'
+                                      ? '#fef9c3'
+                                      : cardType ===
+                                          'recherche'
+                                        ? '#f3e8ff'
+                                        : '#e0f2fe',
+                                color:
+                                  cardType ===
+                                  'don'
+                                    ? '#166534'
+                                    : cardType ===
+                                        'troc'
+                                      ? '#854d0e'
+                                      : cardType ===
+                                          'recherche'
+                                        ? '#6b21a8'
+                                        : '#0369a1',
+                                fontSize:
+                                  '11px',
+                                fontWeight:
+                                  'bold',
+                                textTransform:
+                                  'uppercase'
+                              }}
+                            >
+                              {cardType}
+                            </span>
+
+                            {cardType ===
+                              'vente' && (
+                              <span
+                                style={{
+                                  fontSize:
+                                    '15px',
+                                  fontWeight:
+                                    'bold',
+                                  color:
+                                    '#27ae60',
+                                  margin: 0
+                                }}
+                              >
+                                {item.prix} €
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <p
                           style={{
                             margin:
-                              '0 0 8px 0',
+                              '0 0 10px 0',
                             fontSize:
-                              '15px',
+                              '12px',
                             color:
-                              '#2c3e50',
+                              '#7f8c8d',
                             whiteSpace:
                               'nowrap',
                             overflow:
@@ -1557,117 +1747,60 @@ export default function Home() {
                               'ellipsis'
                           }}
                         >
-                          {item.titre}
-                        </h3>
+                          {item.description}
+                        </p>
 
-                        <div
-                          style={{
-                            display:
-                              'flex',
-                            justifyContent:
-                              'space-between',
-                            alignItems:
-                              'center',
-                            marginBottom:
-                              '8px'
-                          }}
-                        >
-                          <span
+                        {isAdmin && (
+                          <div
                             style={{
-                              padding:
-                                '2px 8px',
-                              borderRadius:
-                                '4px',
-                              backgroundColor:
-                                cardType ===
-                                'don'
-                                  ? '#dcfce7'
-                                  : cardType ===
-                                      'troc'
-                                    ? '#fef9c3'
-                                    : cardType ===
-                                        'recherche'
-                                      ? '#f3e8ff'
-                                      : '#e0f2fe',
-                              color:
-                                cardType ===
-                                'don'
-                                  ? '#166534'
-                                  : cardType ===
-                                      'troc'
-                                    ? '#854d0e'
-                                    : cardType ===
-                                        'recherche'
-                                      ? '#6b21a8'
-                                      : '#0369a1',
-                              fontSize:
-                                '11px',
-                              fontWeight:
-                                'bold',
-                              textTransform:
-                                'uppercase'
+                              display:
+                                'flex',
+                              gap:
+                                '6px',
+                              marginTop:
+                                '10px',
+                              borderTop:
+                                '1px solid #f1f5f9',
+                              paddingTop:
+                                '10px'
                             }}
                           >
-                            {cardType}
-                          </span>
+                            {item.status ===
+                              'en attente' && (
+                              <button
+                                onClick={(e) =>
+                                  handleValidate(
+                                    e,
+                                    item.id
+                                  )
+                                }
+                                style={{
+                                  flex: 1,
+                                  backgroundColor:
+                                    '#2ecc71',
+                                  color:
+                                    'white',
+                                  border:
+                                    'none',
+                                  padding:
+                                    '6px',
+                                  borderRadius:
+                                    '4px',
+                                  fontSize:
+                                    '11px',
+                                  fontWeight:
+                                    'bold',
+                                  cursor:
+                                    'pointer'
+                                }}
+                              >
+                                Valider
+                              </button>
+                            )}
 
-                          {cardType ===
-                            'vente' && (
-                            <span
-                              style={{
-                                fontSize:
-                                  '15px',
-                                fontWeight:
-                                  'bold',
-                                color:
-                                  '#27ae60',
-                                margin: 0
-                              }}
-                            >
-                              {item.prix} €
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <p
-                        style={{
-                          margin:
-                            '0 0 10px 0',
-                          fontSize:
-                            '12px',
-                          color:
-                            '#7f8c8d',
-                          whiteSpace:
-                            'nowrap',
-                          overflow:
-                            'hidden',
-                          textOverflow:
-                            'ellipsis'
-                        }}
-                      >
-                        {item.description}
-                      </p>
-
-                      {isAdmin && (
-                        <div
-                          style={{
-                            display:
-                              'flex',
-                            gap: '6px',
-                            marginTop:
-                              '10px',
-                            borderTop:
-                              '1px solid #f1f5f9',
-                            paddingTop:
-                              '10px'
-                          }}
-                        >
-                          {item.status ===
-                            'en attente' && (
                             <button
                               onClick={(e) =>
-                                handleValidate(
+                                handleDeleteAdmin(
                                   e,
                                   item.id
                                 )
@@ -1675,10 +1808,13 @@ export default function Home() {
                               style={{
                                 flex: 1,
                                 backgroundColor:
-                                  '#2ecc71',
-                                color: 'white',
-                                border: 'none',
-                                padding: '6px',
+                                  '#e74c3c',
+                                color:
+                                  'white',
+                                border:
+                                  'none',
+                                padding:
+                                  '6px',
                                 borderRadius:
                                   '4px',
                                 fontSize:
@@ -1689,48 +1825,101 @@ export default function Home() {
                                   'pointer'
                               }}
                             >
-                              Valider
+                              Supprimer
                             </button>
-                          )}
-
-                          <button
-                            onClick={(e) =>
-                              handleDeleteAdmin(
-                                e,
-                                item.id
-                              )
-                            }
-                            style={{
-                              flex: 1,
-                              backgroundColor:
-                                '#e74c3c',
-                              color: 'white',
-                              border: 'none',
-                              padding: '6px',
-                              borderRadius:
-                                '4px',
-                              fontSize:
-                                '11px',
-                              fontWeight:
-                                'bold',
-                              cursor:
-                                'pointer'
-                            }}
-                          >
-                            Supprimer
-                          </button>
-                        </div>
-                      )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )
-              }
+                  )
+                }
+              )}
+            </div>
+
+            {/* AFFICHER PLUS */}
+            {annonces.length <
+              totalAnnonces && (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection:
+                    'column',
+                  alignItems:
+                    'center',
+                  gap: '8px',
+                  marginTop:
+                    '32px'
+                }}
+              >
+                <button
+                  type="button"
+                  disabled={
+                    loadingMore
+                  }
+                  onClick={() =>
+                    fetchAnnonces(
+                      false
+                    )
+                  }
+                  style={{
+                    minWidth:
+                      '170px',
+                    padding:
+                      '10px 20px',
+                    backgroundColor:
+                      loadingMore
+                        ? '#d8e2df'
+                        : '#356f63',
+                    color:
+                      loadingMore
+                        ? '#6b7f78'
+                        : '#ffffff',
+                    border: 'none',
+                    borderRadius:
+                      '8px',
+                    fontSize:
+                      '14px',
+                    fontWeight:
+                      '700',
+                    cursor:
+                      loadingMore
+                        ? 'default'
+                        : 'pointer',
+                    boxShadow:
+                      '0 2px 5px rgba(0,0,0,0.08)'
+                  }}
+                >
+                  {loadingMore
+                    ? 'Chargement...'
+                    : 'Afficher plus'}
+                </button>
+
+                <span
+                  style={{
+                    fontSize:
+                      '11px',
+                    color:
+                      '#94a3b8'
+                  }}
+                >
+                  {Math.min(
+                    annonces.length,
+                    totalAnnonces
+                  )}{' '}
+                  sur{' '}
+                  {totalAnnonces}{' '}
+                  annonce
+                  {totalAnnonces >
+                  1
+                    ? 's'
+                    : ''}
+                </span>
+              </div>
             )}
-          </div>
+          </>
         )}
       </main>
-
-      <InstallPrompt />
+            <InstallPrompt />
 
       <footer
         style={{
