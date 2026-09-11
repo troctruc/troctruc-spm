@@ -1944,20 +1944,6 @@ export default function Home() {
         <p
           style={{
             margin:
-              '0 0 8px 0',
-            fontSize: '11px',
-            color: '#a8b0b7',
-            lineHeight: 1.45
-          }}
-        >
-          Petites annonces locales à Saint-Pierre-et-Miquelon : occasion,
-          dons, troc, services, véhicules, immobilier et covoiturage à
-          Saint-Pierre, Miquelon et Langlade.
-        </p>
-
-        <p
-          style={{
-            margin:
               '0 0 10px 0',
             fontSize: '12px',
             color: '#95a5a6'
@@ -1965,6 +1951,21 @@ export default function Home() {
         >
           Contact :
           contact.troctruc@gmail.com
+        </p>
+
+        <p
+          style={{
+            margin:
+              '0 0 6px 0',
+            fontSize: '9px',
+            color: '#b8bec4',
+            lineHeight: 1.35,
+            textTransform: 'lowercase'
+          }}
+        >
+          petites annonces locales à saint-pierre-et-miquelon : occasion,
+          dons, troc, services, véhicules, immobilier et covoiturage à
+          saint-pierre, miquelon et langlade.
         </p>
 
         <a
