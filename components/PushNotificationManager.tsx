@@ -3,17 +3,27 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+function urlBase64ToUint8Array(
+  base64String: string
+) {
+  const padding = '='.repeat(
+    (4 - (base64String.length % 4)) % 4
+  );
 
-  const base64 = (base64String + padding)
+  const base64 = (
+    base64String + padding
+  )
     .replace(/-/g, '+')
     .replace(/_/g, '/');
 
-  const rawData = window.atob(base64);
+  const rawData =
+    window.atob(base64);
 
   return Uint8Array.from(
-    [...rawData].map((char) => char.charCodeAt(0))
+    [...rawData].map(
+      (char) =>
+        char.charCodeAt(0)
+    )
   );
 }
 
@@ -22,70 +32,197 @@ export default function PushNotificationManager({
 }: {
   user: any;
 }) {
-  const [isSupported, setIsSupported] = useState<boolean | null>(null);
-  const [isSubscribed, setIsSubscribed] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [showTooltip, setShowTooltip] = useState(false);
+  const [
+    isSupported,
+    setIsSupported,
+  ] = useState<boolean | null>(
+    null
+  );
+
+  const [
+    isSubscribed,
+    setIsSubscribed,
+  ] = useState(false);
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(false);
+
+  const [
+    showTooltip,
+    setShowTooltip,
+  ] = useState(false);
 
   useEffect(() => {
     if (
-      typeof window !== 'undefined' &&
-      'serviceWorker' in navigator &&
-      'PushManager' in window &&
-      'Notification' in window
+      typeof window !==
+        'undefined' &&
+      'serviceWorker' in
+        navigator &&
+      'PushManager' in
+        window &&
+      'Notification' in
+        window
     ) {
       setIsSupported(true);
-      checkSubscription();
+
+      syncSubscription();
     } else {
       setIsSupported(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
   async function getRegistration() {
-    await navigator.serviceWorker.register('/sw.js');
-    return await navigator.serviceWorker.ready;
+    const registration =
+      await navigator.serviceWorker.register(
+        '/sw.js',
+        {
+          updateViaCache:
+            'none',
+        }
+      );
+
+    await registration.update();
+
+    return await navigator
+      .serviceWorker.ready;
   }
 
-  async function checkSubscription() {
+  /**
+   * Synchronise automatiquement
+   * l'abonnement du navigateur
+   * avec Supabase.
+   *
+   * Si le navigateur possède
+   * toujours un abonnement valide
+   * mais que Supabase l'a perdu,
+   * on le réenregistre.
+   */
+  async function syncSubscription() {
     if (!user) {
       setIsSubscribed(false);
       return;
     }
 
     try {
-      const registration = await getRegistration();
+      const registration =
+        await getRegistration();
 
       const browserSubscription =
-        await registration.pushManager.getSubscription();
+        await registration
+          .pushManager
+          .getSubscription();
 
+      /**
+       * Aucun abonnement dans
+       * ce navigateur.
+       */
       if (!browserSubscription) {
         setIsSubscribed(false);
         return;
       }
 
-      const endpoint = browserSubscription.endpoint;
+      /**
+       * Si les notifications ont
+       * été refusées, on considère
+       * l'abonnement désactivé.
+       */
+      if (
+        Notification.permission !==
+        'granted'
+      ) {
+        setIsSubscribed(false);
+        return;
+      }
 
-      const { data, error } = await supabase
-        .from('push_subscriptions')
-        .select('id, subscription')
-        .eq('user_id', user.id);
+      const endpoint =
+        browserSubscription.endpoint;
+
+      const {
+        data,
+        error,
+      } = await supabase
+        .from(
+          'push_subscriptions'
+        )
+        .select(
+          'id, subscription'
+        )
+        .eq(
+          'user_id',
+          user.id
+        );
 
       if (error) {
         console.error(
           'Erreur lecture push_subscriptions :',
           error
         );
+
         setIsSubscribed(false);
         return;
       }
 
-      const exists = data?.some(
-        (row) => row.subscription?.endpoint === endpoint
+      const exists =
+        data?.some(
+          (row) =>
+            row.subscription
+              ?.endpoint ===
+            endpoint
+        );
+
+      /**
+       * Le navigateur possède
+       * un abonnement valide
+       * mais il n'est plus enregistré
+       * dans Supabase.
+       *
+       * On le répare automatiquement.
+       */
+      if (!exists) {
+        console.log(
+          '🔧 Réparation automatique abonnement push'
+        );
+
+        const {
+          error: insertError,
+        } = await supabase
+          .from(
+            'push_subscriptions'
+          )
+          .insert({
+            user_id:
+              user.id,
+            subscription:
+              browserSubscription.toJSON(),
+          });
+
+        if (insertError) {
+          console.error(
+            'Erreur réparation abonnement push :',
+            insertError
+          );
+
+          setIsSubscribed(
+            false
+          );
+
+          return;
+        }
+
+        console.log(
+          '✅ Abonnement push réparé'
+        );
+      }
+
+      setIsSubscribed(true);
+    } catch (err) {
+      console.error(
+        'Erreur synchronisation push :',
+        err
       );
 
-      setIsSubscribed(Boolean(exists));
-    } catch (err) {
-      console.error('Erreur vérification SW :', err);
       setIsSubscribed(false);
     }
   }
@@ -96,34 +233,69 @@ export default function PushNotificationManager({
     setLoading(true);
 
     try {
-      const registration = await getRegistration();
+      const registration =
+        await getRegistration();
 
+      /**
+       * DÉSACTIVATION
+       */
       if (isSubscribed) {
-        const sub = await registration.pushManager.getSubscription();
+        const sub =
+          await registration
+            .pushManager
+            .getSubscription();
 
         if (sub) {
-          const endpoint = sub.endpoint;
+          const endpoint =
+            sub.endpoint;
 
-          const { data, error } = await supabase
-            .from('push_subscriptions')
-            .select('id, subscription')
-            .eq('user_id', user.id);
+          const {
+            data,
+            error,
+          } = await supabase
+            .from(
+              'push_subscriptions'
+            )
+            .select(
+              'id, subscription'
+            )
+            .eq(
+              'user_id',
+              user.id
+            );
 
           if (error) {
             throw error;
           }
 
-          const currentDevice = data?.find(
-            (row) => row.subscription?.endpoint === endpoint
-          );
+          const currentDevice =
+            data?.find(
+              (row) =>
+                row.subscription
+                  ?.endpoint ===
+                endpoint
+            );
 
-          if (currentDevice) {
-            const { error: deleteError } = await supabase
-              .from('push_subscriptions')
-              .delete()
-              .eq('id', currentDevice.id);
+          if (
+            currentDevice
+          ) {
+            const {
+              error:
+                deleteError,
+            } =
+              await supabase
+                .from(
+                  'push_subscriptions'
+                )
+                .delete()
+                .eq(
+                  'id',
+                  currentDevice.id
+                );
 
-            if (deleteError) {
+            if (
+              deleteError
+            ) {
               throw deleteError;
             }
           }
@@ -133,15 +305,31 @@ export default function PushNotificationManager({
 
         setIsSubscribed(false);
       } else {
-        const permission = await Notification.requestPermission();
+        /**
+         * ACTIVATION
+         */
+        const permission =
+          await Notification
+            .requestPermission();
 
-        if (permission !== 'granted') {
-          console.log('Permission notifications refusée');
+        if (
+          permission !==
+          'granted'
+        ) {
+          console.log(
+            'Permission notifications refusée'
+          );
+
+          setIsSubscribed(
+            false
+          );
+
           return;
         }
 
         const vapidKey =
-          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+          process.env
+            .NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
         if (!vapidKey) {
           throw new Error(
@@ -150,35 +338,78 @@ export default function PushNotificationManager({
         }
 
         let subscription =
-          await registration.pushManager.getSubscription();
+          await registration
+            .pushManager
+            .getSubscription();
 
+        /**
+         * Si aucun abonnement
+         * navigateur n'existe,
+         * on en crée un.
+         */
         if (!subscription) {
           subscription =
-            await registration.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey:
-                urlBase64ToUint8Array(vapidKey),
-            });
+            await registration
+              .pushManager
+              .subscribe({
+                userVisibleOnly:
+                  true,
+                applicationServerKey:
+                  urlBase64ToUint8Array(
+                    vapidKey
+                  ),
+              });
         }
 
-        // Évite un doublon pour ce navigateur
-        const { data: existing } = await supabase
-          .from('push_subscriptions')
-          .select('id, subscription')
-          .eq('user_id', user.id);
+        /**
+         * Vérification de Supabase.
+         */
+        const {
+          data: existing,
+          error:
+            existingError,
+        } = await supabase
+          .from(
+            'push_subscriptions'
+          )
+          .select(
+            'id, subscription'
+          )
+          .eq(
+            'user_id',
+            user.id
+          );
 
-        const alreadyStored = existing?.some(
-          (row) =>
-            row.subscription?.endpoint ===
-            subscription?.endpoint
-        );
+        if (existingError) {
+          throw existingError;
+        }
 
+        const alreadyStored =
+          existing?.some(
+            (row) =>
+              row.subscription
+                ?.endpoint ===
+              subscription
+                ?.endpoint
+          );
+
+        /**
+         * Enregistrement seulement
+         * si ce téléphone n'est pas
+         * déjà connu.
+         */
         if (!alreadyStored) {
-          const { error } = await supabase
-            .from('push_subscriptions')
+          const {
+            error,
+          } = await supabase
+            .from(
+              'push_subscriptions'
+            )
             .insert({
-              user_id: user.id,
-              subscription: subscription.toJSON(),
+              user_id:
+                user.id,
+              subscription:
+                subscription.toJSON(),
             });
 
           if (error) {
@@ -187,38 +418,66 @@ export default function PushNotificationManager({
         }
 
         setIsSubscribed(true);
+
+        console.log(
+          '✅ Notifications push activées'
+        );
       }
     } catch (err) {
-      console.error('Erreur toggle push :', err);
+      console.error(
+        'Erreur toggle push :',
+        err
+      );
     } finally {
       setLoading(false);
       setShowTooltip(false);
     }
   }
 
-  if (isSupported === false || !user) return null;
+  if (
+    isSupported === false ||
+    !user
+  ) {
+    return null;
+  }
 
   return (
     <div
       style={{
-        position: 'relative',
-        display: 'inline-block',
+        position:
+          'relative',
+        display:
+          'inline-block',
       }}
     >
       <button
-        onClick={() => setShowTooltip(!showTooltip)}
+        onClick={() =>
+          setShowTooltip(
+            !showTooltip
+          )
+        }
         style={{
-          backgroundColor: '#ffffff',
-          border: '1px solid #cbd5e1',
-          borderRadius: '8px',
-          padding: '7px 10px',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
+          backgroundColor:
+            '#ffffff',
+          border:
+            '1px solid #cbd5e1',
+          borderRadius:
+            '8px',
+          padding:
+            '7px 10px',
+          cursor:
+            'pointer',
+          display:
+            'flex',
+          alignItems:
+            'center',
           gap: '6px',
-          color: '#334155',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-          transition: 'all 0.2s',
+          color:
+            '#334155',
+          boxShadow:
+            '0 1px 2px rgba(0,0,0,0.05)',
+          transition:
+            'all 0.2s',
         }}
         title="Gérer les notifications"
       >
@@ -232,7 +491,10 @@ export default function PushNotificationManager({
           strokeLinecap="round"
           strokeLinejoin="round"
           style={{
-            color: isSubscribed ? '#2563eb' : '#64748b',
+            color:
+              isSubscribed
+                ? '#2563eb'
+                : '#64748b',
           }}
         >
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -253,9 +515,12 @@ export default function PushNotificationManager({
         {!isSubscribed && (
           <span
             style={{
-              fontSize: '11px',
-              fontWeight: '600',
-              color: '#e67e22',
+              fontSize:
+                '11px',
+              fontWeight:
+                '600',
+              color:
+                '#e67e22',
             }}
           >
             Activer
@@ -266,25 +531,36 @@ export default function PushNotificationManager({
       {showTooltip && (
         <div
           style={{
-            position: 'absolute',
+            position:
+              'absolute',
             top: '45px',
             right: '0',
             width: '240px',
-            backgroundColor: 'white',
-            border: '1px solid #e2e8f0',
-            borderRadius: '10px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            padding: '12px',
+            backgroundColor:
+              'white',
+            border:
+              '1px solid #e2e8f0',
+            borderRadius:
+              '10px',
+            boxShadow:
+              '0 4px 12px rgba(0,0,0,0.15)',
+            padding:
+              '12px',
             zIndex: 100,
-            boxSizing: 'border-box',
+            boxSizing:
+              'border-box',
           }}
         >
           <p
             style={{
-              margin: '0 0 10px 0',
-              fontSize: '12px',
-              color: '#1e293b',
-              lineHeight: '1.4',
+              margin:
+                '0 0 10px 0',
+              fontSize:
+                '12px',
+              color:
+                '#1e293b',
+              lineHeight:
+                '1.4',
             }}
           >
             {isSubscribed
@@ -293,20 +569,35 @@ export default function PushNotificationManager({
           </p>
 
           <button
-            onClick={toggleSubscription}
-            disabled={loading}
+            onClick={
+              toggleSubscription
+            }
+            disabled={
+              loading
+            }
             style={{
-              width: '100%',
-              backgroundColor: isSubscribed
-                ? '#ef4444'
-                : '#2563eb',
-              color: 'white',
-              border: 'none',
-              padding: '7px',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              cursor: loading ? 'wait' : 'pointer',
+              width:
+                '100%',
+              backgroundColor:
+                isSubscribed
+                  ? '#ef4444'
+                  : '#2563eb',
+              color:
+                'white',
+              border:
+                'none',
+              padding:
+                '7px',
+              borderRadius:
+                '6px',
+              fontSize:
+                '12px',
+              fontWeight:
+                'bold',
+              cursor:
+                loading
+                  ? 'wait'
+                  : 'pointer',
             }}
           >
             {loading

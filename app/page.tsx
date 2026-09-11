@@ -20,6 +20,9 @@ export default function Home() {
   const [selectedTypeOffre, setSelectedTypeOffre] = useState('Tous')
   const [selectedLocation, setSelectedLocation] = useState('Tous')
 
+  // Filtre "Nouvelles" désactivé par défaut
+  const [showNewOnly, setShowNewOnly] = useState(false)
+
   // Nombre réel de messages non lus
   const [unreadCount, setUnreadCount] = useState(0)
 
@@ -61,16 +64,10 @@ export default function Home() {
 
     handleResize()
 
-    window.addEventListener(
-      'resize',
-      handleResize
-    )
+    window.addEventListener('resize', handleResize)
 
     return () => {
-      window.removeEventListener(
-        'resize',
-        handleResize
-      )
+      window.removeEventListener('resize', handleResize)
     }
   }, [])
 
@@ -83,16 +80,11 @@ export default function Home() {
       setUser(user)
 
       if (user) {
-        if (
-          user.email ===
-          'contact.troctruc@gmail.com'
-        ) {
+        if (user.email === 'contact.troctruc@gmail.com') {
           setIsAdmin(true)
         }
 
-        await checkUnreadMessages(
-          user.id
-        )
+        await checkUnreadMessages(user.id)
       }
 
       fetchAnnonces()
@@ -101,49 +93,32 @@ export default function Home() {
     init()
   }, [])
 
-  /**
-   * Compte les messages réellement non lus :
-   * - reçus par l'utilisateur
-   * - appartenant à ses conversations
-   * - read_at = NULL
-   */
-  async function checkUnreadMessages(
-    userId: string
-  ) {
+  async function checkUnreadMessages(userId: string) {
     try {
       const {
         data: convs,
         error: convError
       } = await supabase
         .from('conversations')
-        .select(
-          'id, buyer_id, seller_id'
-        )
-        .or(
-          `buyer_id.eq.${userId},seller_id.eq.${userId}`
-        )
+        .select('id, buyer_id, seller_id')
+        .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
 
       if (convError) {
         console.error(
           'Erreur lecture conversations :',
           convError
         )
-
         return
       }
 
-      if (
-        !convs ||
-        convs.length === 0
-      ) {
+      if (!convs || convs.length === 0) {
         setUnreadCount(0)
         return
       }
 
-      const conversationIds =
-        convs.map(
-          (conv) => conv.id
-        )
+      const conversationIds = convs.map(
+        (conv) => conv.id
+      )
 
       const {
         data: unreadMessages,
@@ -151,25 +126,15 @@ export default function Home() {
       } = await supabase
         .from('messages')
         .select('id')
-        .in(
-          'conversation_id',
-          conversationIds
-        )
-        .neq(
-          'sender_id',
-          userId
-        )
-        .is(
-          'read_at',
-          null
-        )
+        .in('conversation_id', conversationIds)
+        .neq('sender_id', userId)
+        .is('read_at', null)
 
       if (messageError) {
         console.error(
           'Erreur comptage messages non lus :',
           messageError
         )
-
         return
       }
 
@@ -184,19 +149,11 @@ export default function Home() {
     }
   }
 
-  /**
-   * Mise à jour du compteur en temps réel.
-   *
-   * Nouveau message -> compteur recalculé.
-   * Message marqué comme lu -> compteur recalculé.
-   */
   useEffect(() => {
     if (!user?.id) return
 
     const channel = supabase
-      .channel(
-        `home_unread_${user.id}`
-      )
+      .channel(`home_unread_${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -205,30 +162,20 @@ export default function Home() {
           table: 'messages'
         },
         () => {
-          checkUnreadMessages(
-            user.id
-          )
+          checkUnreadMessages(user.id)
         }
       )
       .subscribe()
 
     const handleFocus = () => {
-      checkUnreadMessages(
-        user.id
-      )
+      checkUnreadMessages(user.id)
     }
 
-    const handleVisibilityChange =
-      () => {
-        if (
-          document.visibilityState ===
-          'visible'
-        ) {
-          checkUnreadMessages(
-            user.id
-          )
-        }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkUnreadMessages(user.id)
       }
+    }
 
     window.addEventListener(
       'focus',
@@ -241,9 +188,7 @@ export default function Home() {
     )
 
     return () => {
-      supabase.removeChannel(
-        channel
-      )
+      supabase.removeChannel(channel)
 
       window.removeEventListener(
         'focus',
@@ -257,11 +202,6 @@ export default function Home() {
     }
   }, [user?.id])
 
-  /**
-   * Affiche le nombre de messages non lus :
-   * - dans le titre de l'onglet
-   * - sur l'icône de l'application quand l'appareil le permet
-   */
   useEffect(() => {
     const baseTitle = 'TrocTruc SPM'
 
@@ -269,8 +209,7 @@ export default function Home() {
       document.title =
         `(${unreadCount}) ${baseTitle}`
     } else {
-      document.title =
-        baseTitle
+      document.title = baseTitle
     }
 
     const nav = navigator as Navigator & {
@@ -291,9 +230,7 @@ export default function Home() {
         } else {
           if (nav.clearAppBadge) {
             await nav.clearAppBadge()
-          } else if (
-            nav.setAppBadge
-          ) {
+          } else if (nav.setAppBadge) {
             await nav.setAppBadge(0)
           }
         }
@@ -339,16 +276,15 @@ export default function Home() {
   ) {
     e.stopPropagation()
 
-    const { error } =
-      await supabase
-        .from('annonces')
-        .update({
-          status: 'validé'
-        })
-        .eq(
-          'id',
-          annonceId
-        )
+    const { error } = await supabase
+      .from('annonces')
+      .update({
+        status: 'validé'
+      })
+      .eq(
+        'id',
+        annonceId
+      )
 
     if (error) {
       alert(
@@ -378,14 +314,13 @@ export default function Home() {
       return
     }
 
-    const { error } =
-      await supabase
-        .from('annonces')
-        .delete()
-        .eq(
-          'id',
-          annonceId
-        )
+    const { error } = await supabase
+      .from('annonces')
+      .delete()
+      .eq(
+        'id',
+        annonceId
+      )
 
     if (error) {
       alert(
@@ -393,10 +328,7 @@ export default function Home() {
           error.message
       )
     } else {
-      alert(
-        'Annonce supprimée.'
-      )
-
+      alert('Annonce supprimée.')
       fetchAnnonces()
     }
   }
@@ -412,17 +344,9 @@ export default function Home() {
     router.refresh()
   }
 
-  function handleCategoryChange(
-    cat: string
-  ) {
-    if (
-      cat ===
-      '🚗 Covoiturage'
-    ) {
-      router.push(
-        '/covoiturage'
-      )
-
+  function handleCategoryChange(cat: string) {
+    if (cat === '🚗 Covoiturage') {
+      router.push('/covoiturage')
       return
     }
 
@@ -444,24 +368,17 @@ export default function Home() {
           )
 
       const matchCat =
-        selectedCategory ===
-          'Tous' ||
-        item.categorie ===
-          selectedCategory
+        selectedCategory === 'Tous' ||
+        item.categorie === selectedCategory
 
-      let itemTypeOffre =
-        'vente'
+      let itemTypeOffre = 'vente'
 
       if (
         item.description &&
-        item.description.includes(
-          'Type :'
-        )
+        item.description.includes('Type :')
       ) {
         const typePart =
-          item.description.split(
-            'Type :'
-          )[1]
+          item.description.split('Type :')[1]
 
         if (typePart) {
           const rawType =
@@ -470,46 +387,29 @@ export default function Home() {
               .trim()
               .toLowerCase()
 
-          if (
-            rawType.includes(
-              'don'
-            )
-          ) {
-            itemTypeOffre =
-              'don'
+          if (rawType.includes('don')) {
+            itemTypeOffre = 'don'
           } else if (
-            rawType.includes(
-              'troc'
-            )
+            rawType.includes('troc')
           ) {
-            itemTypeOffre =
-              'troc'
+            itemTypeOffre = 'troc'
           } else if (
-            rawType.includes(
-              'recherche'
-            )
+            rawType.includes('recherche')
           ) {
-            itemTypeOffre =
-              'recherche'
+            itemTypeOffre = 'recherche'
           } else if (
-            rawType.includes(
-              'vente'
-            )
+            rawType.includes('vente')
           ) {
-            itemTypeOffre =
-              'vente'
+            itemTypeOffre = 'vente'
           }
         }
       }
 
       const matchTypeOffre =
-        selectedTypeOffre ===
-          'Tous' ||
-        itemTypeOffre ===
-          selectedTypeOffre
+        selectedTypeOffre === 'Tous' ||
+        itemTypeOffre === selectedTypeOffre
 
-      let itemLoc =
-        'Saint-Pierre'
+      let itemLoc = 'Saint-Pierre'
 
       if (
         item.description &&
@@ -532,21 +432,30 @@ export default function Home() {
       }
 
       const matchLoc =
-        selectedLocation ===
-          'Tous' ||
-        itemLoc ===
-          selectedLocation
+        selectedLocation === 'Tous' ||
+        itemLoc === selectedLocation
 
       const isVisibleForUser =
         isAdmin ||
-        item.status !==
-          'en attente'
+        item.status !== 'en attente'
+
+      const isNew =
+        item.created_at &&
+        Date.now() -
+          new Date(
+            item.created_at
+          ).getTime() <
+          48 * 60 * 60 * 1000
+
+      const matchNew =
+        !showNewOnly || isNew
 
       return (
         matchQuery &&
         matchCat &&
         matchTypeOffre &&
         matchLoc &&
+        matchNew &&
         isVisibleForUser
       )
     })
@@ -555,20 +464,17 @@ export default function Home() {
     <div
       style={{
         minHeight: '100vh',
-        backgroundColor:
-          '#f4f6f8',
+        backgroundColor: '#f4f6f8',
         paddingBottom: '60px'
       }}
     >
       {/* HEADER */}
       <header
         style={{
-          backgroundColor:
-            '#ffffff',
+          backgroundColor: '#ffffff',
           borderBottom:
             '1px solid #e1e4e8',
-          padding:
-            '12px 20px',
+          padding: '12px 20px',
           position: 'relative'
         }}
       >
@@ -577,24 +483,19 @@ export default function Home() {
             display: 'flex',
             justifyContent:
               'space-between',
-            alignItems:
-              'center'
+            alignItems: 'center'
           }}
         >
-          {/* Logo */}
           <div
             style={{
               display: 'flex',
-              alignItems:
-                'center',
+              alignItems: 'center',
               gap: '10px',
               cursor: 'pointer'
             }}
             onClick={() => {
               router.push('/')
-              setMobileMenuOpen(
-                false
-              )
+              setMobileMenuOpen(false)
             }}
           >
             <img
@@ -602,32 +503,25 @@ export default function Home() {
               alt="Logo TrocTruc SPM"
               style={{
                 width: '40px',
-                height:
-                  '40px',
-                objectFit:
-                  'contain'
+                height: '40px',
+                objectFit: 'contain'
               }}
             />
 
             <div>
               <div
                 style={{
-                  display:
-                    'flex',
-                  alignItems:
-                    'center',
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: '6px'
                 }}
               >
                 <h1
                   style={{
                     margin: 0,
-                    fontSize:
-                      '17px',
-                    color:
-                      '#2c3e50',
-                    fontWeight:
-                      'bold'
+                    fontSize: '17px',
+                    color: '#2c3e50',
+                    fontWeight: 'bold'
                   }}
                 >
                   TrocTruc SPM
@@ -638,16 +532,11 @@ export default function Home() {
                     style={{
                       backgroundColor:
                         '#e74c3c',
-                      color:
-                        'white',
-                      padding:
-                        '2px 5px',
-                      borderRadius:
-                        '4px',
-                      fontSize:
-                        '10px',
-                      fontWeight:
-                        'bold'
+                      color: 'white',
+                      padding: '2px 5px',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      fontWeight: 'bold'
                     }}
                   >
                     Admin
@@ -659,21 +548,17 @@ export default function Home() {
                 <p
                   style={{
                     margin: 0,
-                    fontSize:
-                      '11px',
-                    color:
-                      '#7f8c8d'
+                    fontSize: '11px',
+                    color: '#7f8c8d'
                   }}
                 >
-                  site d'échange,
-                  de vente et de
-                  partage de SPM
+                  site d'échange, de vente
+                  et de partage de SPM
                 </p>
               )}
             </div>
           </div>
 
-          {/* BOUTON BURGER MOBILE */}
           {isMobile ? (
             <button
               onClick={() =>
@@ -682,63 +567,44 @@ export default function Home() {
                 )
               }
               style={{
-                background:
-                  'none',
+                background: 'none',
                 border:
                   '1px solid #cbd5e1',
-                borderRadius:
-                  '8px',
-                padding:
-                  '6px 12px',
-                fontSize:
-                  '20px',
-                cursor:
-                  'pointer',
-                display:
-                  'flex',
-                alignItems:
-                  'center',
+                borderRadius: '8px',
+                padding: '6px 12px',
+                fontSize: '20px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
                 justifyContent:
                   'center',
-                position:
-                  'relative'
+                position: 'relative'
               }}
             >
               {mobileMenuOpen
                 ? '✕'
                 : '☰'}
 
-              {unreadCount >
-                0 && (
+              {unreadCount > 0 && (
                 <span
                   style={{
-                    position:
-                      'absolute',
+                    position: 'absolute',
                     top: '-9px',
-                    right:
-                      '-9px',
-                    minWidth:
-                      '21px',
-                    height:
-                      '21px',
-                    padding:
-                      '0 5px',
+                    right: '-9px',
+                    minWidth: '21px',
+                    height: '21px',
+                    padding: '0 5px',
                     borderRadius:
                       '999px',
                     backgroundColor:
                       '#ef4444',
-                    color:
-                      '#ffffff',
+                    color: '#ffffff',
                     border:
                       '2px solid white',
-                    fontSize:
-                      '11px',
-                    fontWeight:
-                      'bold',
-                    display:
-                      'flex',
-                    alignItems:
-                      'center',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
                     justifyContent:
                       'center',
                     boxSizing:
@@ -746,21 +612,17 @@ export default function Home() {
                     lineHeight: 1
                   }}
                 >
-                  {unreadCount >
-                  99
+                  {unreadCount > 99
                     ? '99+'
                     : unreadCount}
                 </span>
               )}
             </button>
           ) : (
-            /* MENU ORDINATEUR */
             <div
               style={{
-                display:
-                  'flex',
-                alignItems:
-                  'center',
+                display: 'flex',
+                alignItems: 'center',
                 gap: '10px'
               }}
             >
@@ -777,24 +639,16 @@ export default function Home() {
                 style={{
                   backgroundColor:
                     '#e67e22',
-                  color:
-                    'white',
-                  border:
-                    'none',
-                  padding:
-                    '8px 14px',
-                  borderRadius:
-                    '6px',
-                  fontSize:
-                    '13px',
-                  fontWeight:
-                    'bold',
-                  cursor:
-                    'pointer'
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 14px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
                 }}
               >
-                + Déposer une
-                annonce
+                + Déposer une annonce
               </button>
 
               {user ? (
@@ -808,56 +662,43 @@ export default function Home() {
                     style={{
                       backgroundColor:
                         '#2ecc71',
-                      color:
-                        'white',
-                      border:
-                        'none',
+                      color: 'white',
+                      border: 'none',
                       padding:
                         '8px 14px',
                       borderRadius:
                         '6px',
-                      fontSize:
-                        '13px',
-                      fontWeight:
-                        'bold',
-                      cursor:
-                        'pointer',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
                       position:
                         'relative'
                     }}
                   >
                     💬 Mes Messages
 
-                    {unreadCount >
-                      0 && (
+                    {unreadCount > 0 && (
                       <span
                         style={{
                           position:
                             'absolute',
-                          top:
-                            '-8px',
-                          right:
-                            '-8px',
-                          minWidth:
-                            '20px',
-                          height:
-                            '20px',
+                          top: '-8px',
+                          right: '-8px',
+                          minWidth: '20px',
+                          height: '20px',
                           padding:
                             '0 5px',
                           backgroundColor:
                             '#e74c3c',
-                          color:
-                            'white',
+                          color: 'white',
                           borderRadius:
                             '999px',
                           border:
                             '2px solid white',
-                          fontSize:
-                            '10px',
+                          fontSize: '10px',
                           fontWeight:
                             'bold',
-                          display:
-                            'flex',
+                          display: 'flex',
                           alignItems:
                             'center',
                           justifyContent:
@@ -866,8 +707,7 @@ export default function Home() {
                             'border-box'
                         }}
                       >
-                        {unreadCount >
-                        99
+                        {unreadCount > 99
                           ? '99+'
                           : unreadCount}
                       </span>
@@ -888,44 +728,34 @@ export default function Home() {
                     style={{
                       backgroundColor:
                         '#ffffff',
-                      color:
-                        '#334155',
+                      color: '#334155',
                       border:
                         '1px solid #cbd5e1',
                       padding:
                         '8px 12px',
                       borderRadius:
                         '6px',
-                      fontSize:
-                        '13px',
-                      fontWeight:
-                        '600',
-                      cursor:
-                        'pointer'
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer'
                     }}
                   >
                     👤 Mon Profil
                   </button>
 
                   <button
-                    onClick={
-                      handleLogout
-                    }
+                    onClick={handleLogout}
                     style={{
-                      background:
-                        'none',
+                      background: 'none',
                       border:
                         '1px solid #cbd5e1',
                       padding:
                         '6px 10px',
                       borderRadius:
                         '6px',
-                      fontSize:
-                        '13px',
-                      color:
-                        '#c0392b',
-                      cursor:
-                        'pointer'
+                      fontSize: '13px',
+                      color: '#c0392b',
+                      cursor: 'pointer'
                     }}
                   >
                     Déconnexion
@@ -934,27 +764,20 @@ export default function Home() {
               ) : (
                 <button
                   onClick={() =>
-                    router.push(
-                      '/auth'
-                    )
+                    router.push('/auth')
                   }
                   style={{
                     backgroundColor:
                       '#3498db',
-                    color:
-                      'white',
-                    border:
-                      'none',
+                    color: 'white',
+                    border: 'none',
                     padding:
                       '8px 14px',
                     borderRadius:
                       '6px',
-                    fontSize:
-                      '13px',
-                    fontWeight:
-                      'bold',
-                    cursor:
-                      'pointer'
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
                   }}
                 >
                   Se connecter /
@@ -965,33 +788,26 @@ export default function Home() {
           )}
         </div>
 
-        {/* MENU DÉROULANT MOBILE */}
         {isMobile &&
           mobileMenuOpen && (
             <div
               style={{
-                marginTop:
-                  '14px',
-                paddingTop:
-                  '12px',
+                marginTop: '14px',
+                paddingTop: '12px',
                 borderTop:
                   '1px solid #f1f5f9',
-                display:
-                  'flex',
+                display: 'flex',
                 flexDirection:
                   'column',
                 gap: '10px',
-                width:
-                  '100%',
+                width: '100%',
                 boxSizing:
                   'border-box'
               }}
             >
               <button
                 onClick={() => {
-                  setMobileMenuOpen(
-                    false
-                  )
+                  setMobileMenuOpen(false)
 
                   router.push(
                     user
@@ -1000,44 +816,33 @@ export default function Home() {
                   )
                 }}
                 style={{
-                  width:
-                    '100%',
+                  width: '100%',
                   boxSizing:
                     'border-box',
                   backgroundColor:
                     '#e67e22',
-                  color:
-                    'white',
-                  border:
-                    'none',
-                  padding:
-                    '10px',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px',
                   borderRadius:
                     '8px',
-                  fontSize:
-                    '14px',
-                  fontWeight:
-                    'bold',
-                  cursor:
-                    'pointer'
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
                 }}
               >
-                + Déposer une
-                annonce
+                + Déposer une annonce
               </button>
 
               <div
                 style={{
-                  width:
-                    '100%',
+                  width: '100%',
                   boxSizing:
                     'border-box'
                 }}
               >
                 <CovoiturageNavMenu
-                  fullWidth={
-                    true
-                  }
+                  fullWidth={true}
                 />
               </div>
 
@@ -1045,43 +850,32 @@ export default function Home() {
                 <>
                   <button
                     onClick={() => {
-                      setMobileMenuOpen(
-                        false
-                      )
-
+                      setMobileMenuOpen(false)
                       router.push(
                         '/conversations'
                       )
                     }}
                     style={{
-                      width:
-                        '100%',
+                      width: '100%',
                       boxSizing:
                         'border-box',
                       backgroundColor:
                         '#2ecc71',
-                      color:
-                        'white',
-                      border:
-                        'none',
-                      padding:
-                        '10px',
+                      color: 'white',
+                      border: 'none',
+                      padding: '10px',
                       borderRadius:
                         '8px',
-                      fontSize:
-                        '14px',
-                      fontWeight:
-                        'bold',
-                      cursor:
-                        'pointer',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
                       position:
                         'relative'
                     }}
                   >
                     💬 Mes Messages
 
-                    {unreadCount >
-                      0 && (
+                    {unreadCount > 0 && (
                       <span
                         style={{
                           marginLeft:
@@ -1092,20 +886,16 @@ export default function Home() {
                             'center',
                           justifyContent:
                             'center',
-                          minWidth:
-                            '22px',
-                          height:
-                            '22px',
+                          minWidth: '22px',
+                          height: '22px',
                           padding:
                             '0 6px',
                           borderRadius:
                             '999px',
                           backgroundColor:
                             '#ef4444',
-                          color:
-                            'white',
-                          fontSize:
-                            '11px',
+                          color: 'white',
+                          fontSize: '11px',
                           fontWeight:
                             'bold',
                           border:
@@ -1114,8 +904,7 @@ export default function Home() {
                             'border-box'
                         }}
                       >
-                        {unreadCount >
-                        99
+                        {unreadCount > 99
                           ? '99+'
                           : unreadCount}
                       </span>
@@ -1124,12 +913,10 @@ export default function Home() {
 
                   <div
                     style={{
-                      display:
-                        'flex',
+                      display: 'flex',
                       justifyContent:
                         'center',
-                      width:
-                        '100%'
+                      width: '100%'
                     }}
                   >
                     <PushNotificationManager
@@ -1139,65 +926,45 @@ export default function Home() {
 
                   <button
                     onClick={() => {
-                      setMobileMenuOpen(
-                        false
-                      )
-
-                      router.push(
-                        '/profil'
-                      )
+                      setMobileMenuOpen(false)
+                      router.push('/profil')
                     }}
                     style={{
-                      width:
-                        '100%',
+                      width: '100%',
                       boxSizing:
                         'border-box',
                       backgroundColor:
                         '#ffffff',
-                      color:
-                        '#334155',
+                      color: '#334155',
                       border:
                         '1px solid #cbd5e1',
-                      padding:
-                        '10px',
+                      padding: '10px',
                       borderRadius:
                         '8px',
-                      fontSize:
-                        '14px',
-                      fontWeight:
-                        '600',
-                      cursor:
-                        'pointer'
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer'
                     }}
                   >
                     👤 Mon Profil
                   </button>
 
                   <button
-                    onClick={
-                      handleLogout
-                    }
+                    onClick={handleLogout}
                     style={{
-                      width:
-                        '100%',
+                      width: '100%',
                       boxSizing:
                         'border-box',
-                      background:
-                        '#fff',
+                      background: '#fff',
                       border:
                         '1px solid #fca5a5',
-                      color:
-                        '#dc2626',
-                      padding:
-                        '8px',
+                      color: '#dc2626',
+                      padding: '8px',
                       borderRadius:
                         '8px',
-                      fontSize:
-                        '13px',
-                      fontWeight:
-                        '600',
-                      cursor:
-                        'pointer'
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer'
                     }}
                   >
                     Déconnexion
@@ -1206,35 +973,23 @@ export default function Home() {
               ) : (
                 <button
                   onClick={() => {
-                    setMobileMenuOpen(
-                      false
-                    )
-
-                    router.push(
-                      '/auth'
-                    )
+                    setMobileMenuOpen(false)
+                    router.push('/auth')
                   }}
                   style={{
-                    width:
-                      '100%',
+                    width: '100%',
                     boxSizing:
                       'border-box',
                     backgroundColor:
                       '#3498db',
-                    color:
-                      'white',
-                    border:
-                      'none',
-                    padding:
-                      '10px',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px',
                     borderRadius:
                       '8px',
-                    fontSize:
-                      '14px',
-                    fontWeight:
-                      'bold',
-                    cursor:
-                      'pointer'
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
                   }}
                 >
                   Se connecter /
@@ -1245,46 +1000,34 @@ export default function Home() {
           )}
       </header>
 
-      {/* BARRE DE RECHERCHE, CATÉGORIES, TYPE D'OFFRE ET LOCALISATION */}
+      {/* RECHERCHE ET FILTRES */}
       <div
         style={{
-          maxWidth:
-            '1000px',
-          margin:
-            '20px auto',
-          padding:
-            '16px',
+          maxWidth: '1000px',
+          margin: '20px auto',
+          padding: '16px',
           backgroundColor:
             '#ffffff',
-          borderRadius:
-            '12px',
+          borderRadius: '12px',
           boxShadow:
             '0 2px 8px rgba(0,0,0,0.05)',
-          display:
-            'flex',
-          flexDirection:
-            'column',
+          display: 'flex',
+          flexDirection: 'column',
           gap: '15px'
         }}
       >
-        {/* Ligne 1 : Recherche + Catégorie */}
         <div
           style={{
-            display:
-              'flex',
+            display: 'flex',
             gap: '12px',
-            alignItems:
-              'center',
-            flexWrap:
-              'wrap'
+            alignItems: 'center',
+            flexWrap: 'wrap'
           }}
         >
           <input
             type="text"
             placeholder="Que recherchez-vous ?"
-            value={
-              searchQuery
-            }
+            value={searchQuery}
             onChange={(e) =>
               setSearchQuery(
                 e.target.value
@@ -1298,47 +1041,35 @@ export default function Home() {
                 '8px',
               border:
                 '1px solid #cbd5e1',
-              outline:
-                'none',
-              fontSize:
-                '14px',
-              minWidth:
-                '220px'
+              outline: 'none',
+              fontSize: '14px',
+              minWidth: '220px'
             }}
           />
 
           <div
             style={{
-              display:
-                'flex',
-              alignItems:
-                'center',
+              display: 'flex',
+              alignItems: 'center',
               gap: '8px',
-              width:
-                isMobile
-                  ? '100%'
-                  : 'auto'
+              width: isMobile
+                ? '100%'
+                : 'auto'
             }}
           >
             <label
               style={{
-                fontSize:
-                  '13px',
-                fontWeight:
-                  'bold',
-                color:
-                  '#475569',
-                whiteSpace:
-                  'nowrap'
+                fontSize: '13px',
+                fontWeight: 'bold',
+                color: '#475569',
+                whiteSpace: 'nowrap'
               }}
             >
               Catégorie :
             </label>
 
             <select
-              value={
-                selectedCategory
-              }
+              value={selectedCategory}
               onChange={(e) =>
                 handleCategoryChange(
                   e.target.value
@@ -1352,67 +1083,46 @@ export default function Home() {
                   '8px',
                 border:
                   '1px solid #cbd5e1',
-                outline:
-                  'none',
-                fontSize:
-                  '14px',
+                outline: 'none',
+                fontSize: '14px',
                 backgroundColor:
                   '#ffffff',
-                color:
-                  '#2c3e50',
-                cursor:
-                  'pointer',
-                fontWeight:
-                  '500'
+                color: '#2c3e50',
+                cursor: 'pointer',
+                fontWeight: '500'
               }}
             >
-              {categories.map(
-                (cat) => (
-                  <option
-                    key={
-                      cat
-                    }
-                    value={
-                      cat
-                    }
-                  >
-                    {cat ===
-                    'Tous'
-                      ? 'Toutes les catégories'
-                      : cat}
-                  </option>
-                )
-              )}
+              {categories.map((cat) => (
+                <option
+                  key={cat}
+                  value={cat}
+                >
+                  {cat === 'Tous'
+                    ? 'Toutes les catégories'
+                    : cat}
+                </option>
+              ))}
             </select>
           </div>
         </div>
 
-        {/* Ligne 2 : Filtres Type d'Offre */}
         <div
           style={{
-            display:
-              'flex',
+            display: 'flex',
             gap: '8px',
-            alignItems:
-              'center',
-            flexWrap:
-              'wrap',
+            alignItems: 'center',
+            flexWrap: 'wrap',
             borderTop:
               '1px solid #f1f5f9',
-            paddingTop:
-              '12px'
+            paddingTop: '12px'
           }}
         >
           <span
             style={{
-              fontSize:
-                '13px',
-              fontWeight:
-                'bold',
-              color:
-                '#475569',
-              marginRight:
-                '5px'
+              fontSize: '13px',
+              fontWeight: 'bold',
+              color: '#475569',
+              marginRight: '5px'
             }}
           >
             🏷️ Type :
@@ -1421,9 +1131,7 @@ export default function Home() {
           {typesOffre.map(
             (type) => (
               <button
-                key={
-                  type.value
-                }
+                key={type.value}
                 onClick={() =>
                   setSelectedTypeOffre(
                     type.value
@@ -1434,14 +1142,10 @@ export default function Home() {
                     '6px 14px',
                   borderRadius:
                     '20px',
-                  border:
-                    'none',
-                  cursor:
-                    'pointer',
-                  fontSize:
-                    '13px',
-                  fontWeight:
-                    'bold',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
                   backgroundColor:
                     selectedTypeOffre ===
                     type.value
@@ -1460,103 +1164,114 @@ export default function Home() {
               </button>
             )
           )}
+
+          {/* FILTRE NOUVELLES */}
+          <button
+            onClick={() =>
+              setShowNewOnly(
+                !showNewOnly
+              )
+            }
+            style={{
+              padding:
+                '6px 14px',
+              borderRadius:
+                '20px',
+              border:
+                showNewOnly
+                  ? '1px solid #2563eb'
+                  : '1px solid #cbd5e1',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: 'bold',
+              backgroundColor:
+                showNewOnly
+                  ? '#2563eb'
+                  : '#f8fafc',
+              color:
+                showNewOnly
+                  ? '#ffffff'
+                  : '#64748b',
+              transition:
+                'all 0.2s'
+            }}
+          >
+            ✨ Nouvelles
+          </button>
         </div>
 
-        {/* Ligne 3 : Filtres Localisation */}
         <div
           style={{
-            display:
-              'flex',
+            display: 'flex',
             gap: '8px',
-            alignItems:
-              'center',
-            flexWrap:
-              'wrap',
+            alignItems: 'center',
+            flexWrap: 'wrap',
             borderTop:
               '1px solid #f1f5f9',
-            paddingTop:
-              '12px'
+            paddingTop: '12px'
           }}
         >
           <span
             style={{
-              fontSize:
-                '13px',
-              fontWeight:
-                'bold',
-              color:
-                '#475569',
-              marginRight:
-                '5px'
+              fontSize: '13px',
+              fontWeight: 'bold',
+              color: '#475569',
+              marginRight: '5px'
             }}
           >
             📍 Lieu :
           </span>
 
-          {locations.map(
-            (loc) => (
-              <button
-                key={
+          {locations.map((loc) => (
+            <button
+              key={loc.value}
+              onClick={() =>
+                setSelectedLocation(
                   loc.value
-                }
-                onClick={() =>
-                  setSelectedLocation(
-                    loc.value
-                  )
-                }
-                style={{
-                  padding:
-                    '6px 14px',
-                  borderRadius:
-                    '20px',
-                  border:
-                    'none',
-                  cursor:
-                    'pointer',
-                  fontSize:
-                    '13px',
-                  fontWeight:
-                    'bold',
-                  backgroundColor:
-                    selectedLocation ===
-                    loc.value
-                      ? '#2c3e50'
-                      : '#f1f5f9',
-                  color:
-                    selectedLocation ===
-                    loc.value
-                      ? '#ffffff'
-                      : '#64748b',
-                  transition:
-                    'all 0.2s'
-                }}
-              >
-                {loc.label}
-              </button>
-            )
-          )}
+                )
+              }
+              style={{
+                padding:
+                  '6px 14px',
+                borderRadius:
+                  '20px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                backgroundColor:
+                  selectedLocation ===
+                  loc.value
+                    ? '#2c3e50'
+                    : '#f1f5f9',
+                color:
+                  selectedLocation ===
+                  loc.value
+                    ? '#ffffff'
+                    : '#64748b',
+                transition:
+                  'all 0.2s'
+              }}
+            >
+              {loc.label}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* LISTE DES ANNONCES */}
       <main
         style={{
-          maxWidth:
-            '1000px',
-          margin:
-            '0 auto',
-          padding:
-            '0 16px'
+          maxWidth: '1000px',
+          margin: '0 auto',
+          padding: '0 16px'
         }}
       >
         <h2
           style={{
-            fontSize:
-              '20px',
-            color:
-              '#2c3e50',
-            marginBottom:
-              '20px'
+            fontSize: '20px',
+            color: '#2c3e50',
+            marginBottom: '20px'
           }}
         >
           Annonces à
@@ -1566,42 +1281,33 @@ export default function Home() {
         {loading ? (
           <p
             style={{
-              textAlign:
-                'center',
-              color:
-                '#7f8c8d',
-              padding:
-                '40px'
+              textAlign: 'center',
+              color: '#7f8c8d',
+              padding: '40px'
             }}
           >
-            Chargement des
-            annonces...
+            Chargement des annonces...
           </p>
         ) : filteredAnnonces.length ===
           0 ? (
           <div
             style={{
-              textAlign:
-                'center',
-              padding:
-                '50px',
+              textAlign: 'center',
+              padding: '50px',
               backgroundColor:
                 'white',
-              borderRadius:
-                '12px',
-              color:
-                '#7f8c8d'
+              borderRadius: '12px',
+              color: '#7f8c8d'
             }}
           >
-            Aucune annonce
-            trouvée pour le
-            moment.
+            {showNewOnly
+              ? 'Aucune nouvelle annonce pour le moment.'
+              : 'Aucune annonce trouvée pour le moment.'}
           </div>
         ) : (
           <div
             style={{
-              display:
-                'grid',
+              display: 'grid',
               gridTemplateColumns:
                 'repeat(auto-fill, minmax(220px, 1fr))',
               gap: '20px'
@@ -1609,18 +1315,14 @@ export default function Home() {
           >
             {filteredAnnonces.map(
               (item) => {
-                let imageUrl =
-                  null
+                let imageUrl = null
 
                 if (
                   item.photos &&
-                  item.photos
-                    .length >
-                    0
+                  item.photos.length > 0
                 ) {
                   imageUrl =
-                    item
-                      .photos[0]
+                    item.photos[0]
                 } else if (
                   item.image_url
                 ) {
@@ -1659,23 +1361,16 @@ export default function Home() {
                       'Localisation :'
                     )[1]
 
-                  if (
-                    locPart
-                  ) {
+                  if (locPart) {
                     cardLocation =
                       locPart
-                        .split(
-                          '\n'
-                        )[0]
-                        .split(
-                          '|'
-                        )[0]
+                        .split('\n')[0]
+                        .split('|')[0]
                         .trim()
                   }
                 }
 
-                let cardType =
-                  'vente'
+                let cardType = 'vente'
 
                 if (
                   item.description &&
@@ -1688,14 +1383,10 @@ export default function Home() {
                       'Type :'
                     )[1]
 
-                  if (
-                    typePart
-                  ) {
+                  if (typePart) {
                     cardType =
                       typePart
-                        .split(
-                          '|'
-                        )[0]
+                        .split('|')[0]
                         .trim()
                         .toLowerCase()
                   }
@@ -1703,9 +1394,7 @@ export default function Home() {
 
                 return (
                   <div
-                    key={
-                      item.id
-                    }
+                    key={item.id}
                     onClick={() =>
                       router.push(
                         `/annonces/${item.id}`
@@ -1716,14 +1405,11 @@ export default function Home() {
                         'white',
                       borderRadius:
                         '10px',
-                      overflow:
-                        'hidden',
+                      overflow: 'hidden',
                       boxShadow:
                         '0 2px 6px rgba(0,0,0,0.05)',
-                      cursor:
-                        'pointer',
-                      display:
-                        'flex',
+                      cursor: 'pointer',
+                      display: 'flex',
                       flexDirection:
                         'column',
                       transition:
@@ -1734,8 +1420,7 @@ export default function Home() {
                   >
                     <div
                       style={{
-                        height:
-                          '160px',
+                        height: '160px',
                         backgroundColor:
                           '#e2e8f0',
                         position:
@@ -1744,17 +1429,11 @@ export default function Home() {
                     >
                       {imageUrl ? (
                         <img
-                          src={
-                            imageUrl
-                          }
-                          alt={
-                            item.titre
-                          }
+                          src={imageUrl}
+                          alt={item.titre}
                           style={{
-                            width:
-                              '100%',
-                            height:
-                              '100%',
+                            width: '100%',
+                            height: '100%',
                             objectFit:
                               'cover'
                           }}
@@ -1762,22 +1441,19 @@ export default function Home() {
                       ) : (
                         <div
                           style={{
-                            display:
-                              'flex',
+                            display: 'flex',
                             alignItems:
                               'center',
                             justifyContent:
                               'center',
-                            height:
-                              '100%',
+                            height: '100%',
                             color:
                               '#95a5a6',
                             fontSize:
                               '13px'
                           }}
                         >
-                          Aucune
-                          photo
+                          Aucune photo
                         </div>
                       )}
 
@@ -1785,14 +1461,11 @@ export default function Home() {
                         style={{
                           position:
                             'absolute',
-                          top:
-                            '10px',
-                          left:
-                            '10px',
+                          top: '10px',
+                          left: '10px',
                           backgroundColor:
                             'rgba(0,0,0,0.6)',
-                          color:
-                            'white',
+                          color: 'white',
                           padding:
                             '3px 8px',
                           borderRadius:
@@ -1803,23 +1476,18 @@ export default function Home() {
                             'bold'
                         }}
                       >
-                        {
-                          item.categorie
-                        }
+                        {item.categorie}
                       </span>
 
                       <span
                         style={{
                           position:
                             'absolute',
-                          bottom:
-                            '10px',
-                          left:
-                            '10px',
+                          bottom: '10px',
+                          left: '10px',
                           backgroundColor:
                             'rgba(30, 41, 59, 0.85)',
-                          color:
-                            'white',
+                          color: 'white',
                           padding:
                             '2px 7px',
                           borderRadius:
@@ -1830,10 +1498,7 @@ export default function Home() {
                             'bold'
                         }}
                       >
-                        📍{' '}
-                        {
-                          cardLocation
-                        }
+                        📍 {cardLocation}
                       </span>
 
                       {isAdmin &&
@@ -1843,14 +1508,12 @@ export default function Home() {
                             style={{
                               position:
                                 'absolute',
-                              top:
-                                '10px',
+                              top: '10px',
                               right:
                                 '10px',
                               backgroundColor:
                                 '#e67e22',
-                              color:
-                                'white',
+                              color: 'white',
                               padding:
                                 '3px 8px',
                               borderRadius:
@@ -1861,18 +1524,15 @@ export default function Home() {
                                 'bold'
                             }}
                           >
-                            En
-                            attente
+                            En attente
                           </span>
                         )}
                     </div>
 
                     <div
                       style={{
-                        padding:
-                          '15px',
-                        display:
-                          'flex',
+                        padding: '15px',
+                        display: 'flex',
                         flexDirection:
                           'column',
                         justifyContent:
@@ -1897,9 +1557,7 @@ export default function Home() {
                               'ellipsis'
                           }}
                         >
-                          {
-                            item.titre
-                          }
+                          {item.titre}
                         </h3>
 
                         <div
@@ -1950,9 +1608,7 @@ export default function Home() {
                                 'uppercase'
                             }}
                           >
-                            {
-                              cardType
-                            }
+                            {cardType}
                           </span>
 
                           {cardType ===
@@ -1968,10 +1624,7 @@ export default function Home() {
                                 margin: 0
                               }}
                             >
-                              {
-                                item.prix
-                              }{' '}
-                              €
+                              {item.prix} €
                             </span>
                           )}
                         </div>
@@ -1993,9 +1646,7 @@ export default function Home() {
                             'ellipsis'
                         }}
                       >
-                        {
-                          item.description
-                        }
+                        {item.description}
                       </p>
 
                       {isAdmin && (
@@ -2003,8 +1654,7 @@ export default function Home() {
                           style={{
                             display:
                               'flex',
-                            gap:
-                              '6px',
+                            gap: '6px',
                             marginTop:
                               '10px',
                             borderTop:
@@ -2016,9 +1666,7 @@ export default function Home() {
                           {item.status ===
                             'en attente' && (
                             <button
-                              onClick={(
-                                e
-                              ) =>
+                              onClick={(e) =>
                                 handleValidate(
                                   e,
                                   item.id
@@ -2028,12 +1676,9 @@ export default function Home() {
                                 flex: 1,
                                 backgroundColor:
                                   '#2ecc71',
-                                color:
-                                  'white',
-                                border:
-                                  'none',
-                                padding:
-                                  '6px',
+                                color: 'white',
+                                border: 'none',
+                                padding: '6px',
                                 borderRadius:
                                   '4px',
                                 fontSize:
@@ -2049,9 +1694,7 @@ export default function Home() {
                           )}
 
                           <button
-                            onClick={(
-                              e
-                            ) =>
+                            onClick={(e) =>
                               handleDeleteAdmin(
                                 e,
                                 item.id
@@ -2061,12 +1704,9 @@ export default function Home() {
                               flex: 1,
                               backgroundColor:
                                 '#e74c3c',
-                              color:
-                                'white',
-                              border:
-                                'none',
-                              padding:
-                                '6px',
+                              color: 'white',
+                              border: 'none',
+                              padding: '6px',
                               borderRadius:
                                 '4px',
                               fontSize:
@@ -2090,45 +1730,34 @@ export default function Home() {
         )}
       </main>
 
-      {/* BOUTON D'INSTALLATION PWA */}
       <InstallPrompt />
 
-      {/* FOOTER */}
       <footer
         style={{
-          textAlign:
-            'center',
-          marginTop:
-            '60px',
-          padding:
-            '20px',
+          textAlign: 'center',
+          marginTop: '60px',
+          padding: '20px',
           borderTop:
             '1px solid #e1e4e8',
-          color:
-            '#7f8c8d',
-          fontSize:
-            '13px'
+          color: '#7f8c8d',
+          fontSize: '13px'
         }}
       >
         <p
           style={{
-            margin:
-              '0 0 5px 0'
+            margin: '0 0 5px 0'
           }}
         >
-          TrocTruc SPM —
-          Plateforme de petites
-          annonces locales
+          TrocTruc SPM — Plateforme
+          de petites annonces locales
         </p>
 
         <p
           style={{
             margin:
               '0 0 10px 0',
-            fontSize:
-              '12px',
-            color:
-              '#95a5a6'
+            fontSize: '12px',
+            color: '#95a5a6'
           }}
         >
           Contact :
@@ -2138,14 +1767,11 @@ export default function Home() {
         <a
           href="/mentions-legales"
           style={{
-            color:
-              '#3498db',
-            textDecoration:
-              'none'
+            color: '#3498db',
+            textDecoration: 'none'
           }}
         >
-          Mentions Légales &
-          CGU
+          Mentions Légales & CGU
         </a>
       </footer>
     </div>
