@@ -730,11 +730,11 @@ export default function ChatModal({
           border:
             'none',
           borderBottom:
-            '1px solid #e3e6e8',
+            '1px solid #2f6258',
           backgroundColor:
-            '#f8f9fa',
+            '#356f63',
           padding:
-            '9px 14px',
+            '10px 14px',
           textAlign:
             'left',
           cursor:
@@ -750,7 +750,7 @@ export default function ChatModal({
             fontWeight:
               '700',
             color:
-              '#35414d'
+              '#ffffff'
           }}
         >
           {annonceTitle}
