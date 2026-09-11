@@ -8,6 +8,8 @@ export default function InstallPrompt() {
   const [isIOS, setIsIOS] = useState(false)
 
   useEffect(() => {
+    // Vérifie si TrocTruc est actuellement ouvert
+    // comme application installée.
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true
@@ -17,29 +19,49 @@ export default function InstallPrompt() {
       return
     }
 
-    const dismissed =
-      localStorage.getItem('troctruc-install-prompt-hidden') === 'true'
-
-    if (dismissed) {
-      setShowBanner(false)
-      return
-    }
-
     const userAgent = window.navigator.userAgent.toLowerCase()
-    const isIosDevice = /iphone|ipad|ipod/.test(userAgent)
+
+    const isIosDevice =
+      /iphone|ipad|ipod/.test(userAgent)
 
     setIsIOS(isIosDevice)
 
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault()
-      setDeferredPrompt(e)
+    // Si l'utilisateur a fermé volontairement le bouton,
+    // on le laisse tranquille pendant 30 jours.
+    const dismissedAt =
+      localStorage.getItem('troctruc-install-prompt-dismissed-at')
+
+    if (dismissedAt) {
+      const dismissedDate = Number(dismissedAt)
+      const thirtyDays = 30 * 24 * 60 * 60 * 1000
+
+      if (Date.now() - dismissedDate < thirtyDays) {
+        return
+      }
+
+      localStorage.removeItem(
+        'troctruc-install-prompt-dismissed-at'
+      )
+    }
+
+    const handleBeforeInstallPrompt = (event: any) => {
+      event.preventDefault()
+
+      setDeferredPrompt(event)
+
+      // IMPORTANT :
+      // Sur Chrome/Android, on affiche le bouton
+      // uniquement si Chrome dit que l'app est installable.
       setShowBanner(true)
     }
 
     const handleAppInstalled = () => {
-      localStorage.setItem('troctruc-install-prompt-hidden', 'true')
       setDeferredPrompt(null)
       setShowBanner(false)
+
+      // On ne mémorise PAS définitivement l'installation.
+      // Ainsi, si l'utilisateur désinstalle TrocTruc plus tard,
+      // Chrome pourra reproposer l'installation.
     }
 
     window.addEventListener(
@@ -52,6 +74,8 @@ export default function InstallPrompt() {
       handleAppInstalled
     )
 
+    // Safari iOS ne possède pas beforeinstallprompt.
+    // Il faut donc proposer manuellement l'installation.
     if (isIosDevice) {
       setShowBanner(true)
     }
@@ -69,16 +93,17 @@ export default function InstallPrompt() {
     }
   }, [])
 
-  const hidePromptPermanently = () => {
+  const handleDismiss = () => {
     localStorage.setItem(
-      'troctruc-install-prompt-hidden',
-      'true'
+      'troctruc-install-prompt-dismissed-at',
+      Date.now().toString()
     )
 
     setShowBanner(false)
   }
 
   const handleInstallClick = async () => {
+    // Chrome / Android
     if (deferredPrompt) {
       deferredPrompt.prompt()
 
@@ -86,11 +111,6 @@ export default function InstallPrompt() {
         await deferredPrompt.userChoice
 
       if (outcome === 'accepted') {
-        localStorage.setItem(
-          'troctruc-install-prompt-hidden',
-          'true'
-        )
-
         setShowBanner(false)
       }
 
@@ -98,24 +118,15 @@ export default function InstallPrompt() {
       return
     }
 
+    // Safari / iPhone / iPad
     if (isIOS) {
       alert(
-        "Pour installer TrocTruc sur votre iPhone ou iPad :\n\n" +
+        "Pour installer TrocTruc SPM :\n\n" +
           "1. Ouvrez le site dans Safari.\n" +
           "2. Appuyez sur le bouton Partager.\n" +
-          "3. Choisissez « Sur l'écran d'accueil ».\n\n" +
-          "Si TrocTruc est déjà installé, fermez ce message puis appuyez sur la croix du bandeau."
+          "3. Choisissez « Sur l'écran d'accueil »."
       )
-
-      return
     }
-
-    alert(
-      "Pour installer TrocTruc :\n\n" +
-        "Ouvrez le menu de votre navigateur puis choisissez " +
-        "« Installer l'application » ou « Ajouter à l'écran d'accueil ».\n\n" +
-        "Si l'application est déjà installée, fermez ce message puis appuyez sur la croix du bandeau."
-    )
   }
 
   if (!showBanner) return null
@@ -130,11 +141,12 @@ export default function InstallPrompt() {
         zIndex: 9999,
         display: 'flex',
         alignItems: 'center',
-        gap: '8px',
+        gap: '6px',
         backgroundColor: '#2563eb',
         borderRadius: '30px',
         boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
         padding: '4px 6px 4px 14px',
+        maxWidth: 'calc(100vw - 30px)',
       }}
     >
       <button
@@ -154,9 +166,9 @@ export default function InstallPrompt() {
       </button>
 
       <button
-        onClick={hidePromptPermanently}
-        aria-label="Masquer le bouton d'installation"
-        title="Ne plus afficher"
+        onClick={handleDismiss}
+        aria-label="Fermer"
+        title="Ne plus afficher pendant 30 jours"
         style={{
           width: '32px',
           height: '32px',
@@ -170,6 +182,7 @@ export default function InstallPrompt() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          flexShrink: 0,
         }}
       >
         ×
