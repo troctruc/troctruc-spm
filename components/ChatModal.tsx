@@ -30,8 +30,12 @@ export default function ChatModal({
 
   const [loading, setLoading] = useState(true)
   const [otherUser, setOtherUser] = useState<any>(null)
+
   const [annonceTitle, setAnnonceTitle] =
     useState('Annonce')
+
+  const [annonceImage, setAnnonceImage] =
+    useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -115,14 +119,16 @@ export default function ChatModal({
 
       try {
         /*
-         * TITRE DE L'ANNONCE
+         * TITRE + PHOTO DE L'ANNONCE
          */
         if (annonceId) {
           const {
             data: annonceData
           } = await supabase
             .from('annonces')
-            .select('titre')
+            .select(
+              'titre, photos, image_url, image_urls'
+            )
             .eq(
               'id',
               annonceId
@@ -131,10 +137,63 @@ export default function ChatModal({
 
           if (
             isMounted &&
-            annonceData?.titre
+            annonceData
           ) {
-            setAnnonceTitle(
-              annonceData.titre
+            if (annonceData.titre) {
+              setAnnonceTitle(
+                annonceData.titre
+              )
+            }
+
+            let firstImage: string | null = null
+
+            if (
+              Array.isArray(
+                annonceData.photos
+              ) &&
+              annonceData.photos.length > 0
+            ) {
+              firstImage =
+                annonceData.photos[0]
+            } else if (
+              annonceData.image_url
+            ) {
+              firstImage =
+                annonceData.image_url.includes(
+                  ','
+                )
+                  ? annonceData.image_url
+                      .split(',')[0]
+                      .trim()
+                  : annonceData.image_url
+            } else if (
+              annonceData.image_urls
+            ) {
+              if (
+                Array.isArray(
+                  annonceData.image_urls
+                )
+              ) {
+                firstImage =
+                  annonceData.image_urls[0] ||
+                  null
+              } else if (
+                typeof annonceData.image_urls ===
+                'string'
+              ) {
+                firstImage =
+                  annonceData.image_urls.includes(
+                    ','
+                  )
+                    ? annonceData.image_urls
+                        .split(',')[0]
+                        .trim()
+                    : annonceData.image_urls
+              }
+            }
+
+            setAnnonceImage(
+              firstImage
             )
           }
         }
@@ -781,9 +840,9 @@ export default function ChatModal({
             alignItems:
               'center',
             gap:
-              '9px',
+              '10px',
             padding:
-              '8px 10px',
+              '7px 9px',
             backgroundColor:
               '#f8faf9',
             border:
@@ -795,11 +854,11 @@ export default function ChatModal({
           <div
             style={{
               width:
-                '30px',
+                '44px',
               height:
-                '30px',
+                '44px',
               borderRadius:
-                '7px',
+                '8px',
               backgroundColor:
                 '#eef3f1',
               display:
@@ -810,11 +869,35 @@ export default function ChatModal({
                 'center',
               flexShrink:
                 0,
-              fontSize:
-                '15px'
+              overflow:
+                'hidden',
+              border:
+                '1px solid #e0e6e3'
             }}
           >
-            🏷️
+            {annonceImage ? (
+              <img
+                src={annonceImage}
+                alt={annonceTitle}
+                style={{
+                  width:
+                    '100%',
+                  height:
+                    '100%',
+                  objectFit:
+                    'cover'
+                }}
+              />
+            ) : (
+              <span
+                style={{
+                  fontSize:
+                    '16px'
+                }}
+              >
+                🏷️
+              </span>
+            )}
           </div>
 
           <div
@@ -836,7 +919,7 @@ export default function ChatModal({
                 letterSpacing:
                   '0.4px',
                 marginBottom:
-                  '2px',
+                  '3px',
                 fontWeight:
                   '700'
               }}
