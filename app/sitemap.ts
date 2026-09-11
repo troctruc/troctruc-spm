@@ -33,8 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const { data: annonces, error } = await supabase
     .from('annonces')
-    .select('id, updated_at, created_at, validated, status')
-    .or('validated.eq.true,status.eq.validé')
+    .select('id, created_at, validated, status')
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -42,15 +41,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return staticPages
   }
 
+  const annoncesPubliees =
+    annonces?.filter(
+      (annonce) =>
+        annonce.validated === true ||
+        annonce.status === 'validé'
+    ) || []
+
   const annoncePages: MetadataRoute.Sitemap =
-    annonces?.map((annonce) => ({
+    annoncesPubliees.map((annonce) => ({
       url: `${baseUrl}/annonces/${annonce.id}`,
-      lastModified: new Date(
-        annonce.updated_at || annonce.created_at || now
-      ),
+      lastModified: annonce.created_at
+        ? new Date(annonce.created_at)
+        : now,
       changeFrequency: 'weekly' as const,
       priority: 0.8,
-    })) || []
+    }))
 
   return [...staticPages, ...annoncePages]
 }
