@@ -19,6 +19,7 @@ export default function Home() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('Tous')
+  const [selectedSubcategory, setSelectedSubcategory] = useState('Tous')
   const [selectedTypeOffre, setSelectedTypeOffre] = useState('Tous')
   const [selectedLocation, setSelectedLocation] = useState('Tous')
 
@@ -45,8 +46,16 @@ export default function Home() {
     'Service',
     'Véhicules',
     'Immobilier',
+    'Mode',
     'Autre',
     '🚗 Covoiturage'
+  ]
+
+  const modeSubcategories = [
+    'Vêtements',
+    'Chaussures',
+    'Bijoux',
+    'Accessoires'
   ]
 
   const typesOffre = [
@@ -300,6 +309,16 @@ export default function Home() {
     }
 
     if (
+      selectedCategory === 'Mode' &&
+      selectedSubcategory !== 'Tous'
+    ) {
+      query = query.ilike(
+        'description',
+        `%Sous-catégorie :%${selectedSubcategory}%`
+      )
+    }
+
+    if (
       selectedTypeOffre !==
       'Tous'
     ) {
@@ -412,6 +431,7 @@ export default function Home() {
     isAdmin,
     searchQuery,
     selectedCategory,
+    selectedSubcategory,
     selectedTypeOffre,
     selectedLocation,
     showNewOnly
@@ -498,6 +518,7 @@ export default function Home() {
     }
 
     setSelectedCategory(cat)
+    setSelectedSubcategory('Tous')
   }
 
   const filteredAnnonces = annonces
@@ -1145,6 +1166,66 @@ export default function Home() {
               ))}
             </select>
           </div>
+
+          {selectedCategory === 'Mode' && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                width: isMobile
+                  ? '100%'
+                  : 'auto'
+              }}
+            >
+              <label
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  color: '#475569',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Sous-catégorie :
+              </label>
+
+              <select
+                value={selectedSubcategory}
+                onChange={(e) =>
+                  setSelectedSubcategory(
+                    e.target.value
+                  )
+                }
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  outline: 'none',
+                  fontSize: '14px',
+                  backgroundColor: '#ffffff',
+                  color: '#2c3e50',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                <option value="Tous">
+                  Toute la mode
+                </option>
+
+                {modeSubcategories.map(
+                  (subcat) => (
+                    <option
+                      key={subcat}
+                      value={subcat}
+                    >
+                      {subcat}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+          )}
         </div>
 
         <div

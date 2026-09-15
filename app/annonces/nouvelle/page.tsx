@@ -15,6 +15,7 @@ export default function NouvelleAnnonce() {
   
   // MISE À JOUR DE LA CATÉGORIE PAR DÉFAUT (PREMIÈRE DU NOUVEL ORDRE)
   const [categorie, setCategorie] = useState('Maison')
+  const [sousCategorie, setSousCategorie] = useState('')
   
   const [typeAnnonce, setTypeAnnonce] = useState('vente')
   const [localisation, setLocalisation] = useState('Saint-Pierre')
@@ -22,7 +23,8 @@ export default function NouvelleAnnonce() {
   const [uploading, setUploading] = useState(false)
 
   // MISE À JOUR DE L'ORDRE DES CATÉGORIES POUR CORRESPONDRE À L'ACCUEIL
-  const categories = ['Maison', 'Loisirs', 'Multimédia', 'Jeu', 'Service', 'Véhicules', 'Immobilier', 'Autre']
+  const categories = ['Maison', 'Loisirs', 'Multimédia', 'Jeu', 'Service', 'Véhicules', 'Immobilier', 'Mode', 'Autre']
+  const modeSubcategories = ['Vêtements', 'Chaussures', 'Bijoux', 'Accessoires']
   const locations = ['Saint-Pierre', 'Miquelon', 'Langlade']
 
   useEffect(() => {
@@ -125,8 +127,19 @@ export default function NouvelleAnnonce() {
       prixFinal = Number(prix)
     }
 
+    if (categorie === 'Mode' && !sousCategorie) {
+      alert("Veuillez choisir une sous-catégorie pour la mode.")
+      setLoading(false)
+      return
+    }
+
     let typeLabel = typeAnnonce === 'recherche' ? 'RECHERCHES' : typeAnnonce.toUpperCase()
-    const formattedDescription = `Type : ${typeLabel} | Localisation : ${localisation}\n\n${description}`
+    const sousCategorieInfo =
+      categorie === 'Mode' && sousCategorie
+        ? ` | Sous-catégorie : ${sousCategorie}`
+        : ''
+
+    const formattedDescription = `Type : ${typeLabel} | Localisation : ${localisation}${sousCategorieInfo}\n\n${description}`
 
     const { data, error } = await supabase.from('annonces').insert([
       {
@@ -220,13 +233,39 @@ export default function NouvelleAnnonce() {
                 <label style={{ fontWeight: '600', fontSize: '14px', color: '#334155' }}>Catégorie</label>
                 <select
                   value={categorie}
-                  onChange={(e) => setCategorie(e.target.value)}
+                  onChange={(e) => {
+                    const nouvelleCategorie = e.target.value
+                    setCategorie(nouvelleCategorie)
+
+                    if (nouvelleCategorie !== 'Mode') {
+                      setSousCategorie('')
+                    }
+                  }}
                   style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', backgroundColor: '#fff' }}
                 >
                   {categories.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
+
+                {categorie === 'Mode' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                    <label style={{ fontWeight: '600', fontSize: '14px', color: '#334155' }}>
+                      Sous-catégorie
+                    </label>
+                    <select
+                      value={sousCategorie}
+                      onChange={(e) => setSousCategorie(e.target.value)}
+                      required
+                      style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', backgroundColor: '#fff' }}
+                    >
+                      <option value="">Choisir une sous-catégorie</option>
+                      {modeSubcategories.map((subcat) => (
+                        <option key={subcat} value={subcat}>{subcat}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
