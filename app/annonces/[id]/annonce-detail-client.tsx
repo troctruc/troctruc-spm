@@ -19,6 +19,7 @@ export default function AnnonceDetailPage({
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [showChat, setShowChat] = useState(false)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     async function init() {
@@ -63,21 +64,77 @@ export default function AnnonceDetailPage({
         'Erreur lors de la validation : ' +
           error.message
       )
-    } else {
-      alert('Annonce validée avec succès !')
-
-      setAnnonce((prev: any) => ({
-        ...prev,
-        validated: true,
-        status: 'validé',
-      }))
+      return
     }
+
+    alert('Annonce validée avec succès !')
+
+    setAnnonce((prev: any) => ({
+      ...prev,
+      validated: true,
+      status: 'validé',
+    }))
+  }
+
+  async function handleDeleteOwnAnnonce() {
+    if (!currentUser) {
+      router.push('/auth')
+      return
+    }
+
+    const ownerId =
+      annonce.user_id ||
+      annonce.author_id ||
+      annonce.created_by
+
+    if (currentUser.id !== ownerId) {
+      alert(
+        'Vous ne pouvez supprimer que vos propres annonces.'
+      )
+      return
+    }
+
+    const confirmation = window.confirm(
+      `Voulez-vous vraiment supprimer l'annonce « ${
+        annonce.titre ||
+        annonce.title ||
+        'cette annonce'
+      } » ?\n\nCette action est définitive.`
+    )
+
+    if (!confirmation) return
+
+    setDeleting(true)
+
+    const { error } = await supabase
+      .from('annonces')
+      .delete()
+      .eq('id', annonce.id)
+      .eq('user_id', currentUser.id)
+
+    setDeleting(false)
+
+    if (error) {
+      alert(
+        "Impossible de supprimer l'annonce : " +
+          error.message
+      )
+      return
+    }
+
+    router.push('/mes-annonces')
+    router.refresh()
   }
 
   const sellerId =
     annonce.user_id ||
     annonce.author_id ||
     annonce.created_by
+
+  const isOwner =
+    !!currentUser &&
+    !!sellerId &&
+    currentUser.id === sellerId
 
   let rawImages =
     annonce.photos ||
@@ -100,9 +157,7 @@ export default function AnnonceDetailPage({
 
   const imagesList = rawList
     .map((item) => {
-      if (!item) {
-        return ''
-      }
+      if (!item) return ''
 
       if (
         item.startsWith('http') ||
@@ -120,6 +175,8 @@ export default function AnnonceDetailPage({
     .filter(Boolean)
 
   const handlePrevImage = () => {
+    if (imagesList.length === 0) return
+
     setSelectedImageIndex((prev) =>
       prev === 0
         ? imagesList.length - 1
@@ -128,6 +185,8 @@ export default function AnnonceDetailPage({
   }
 
   const handleNextImage = () => {
+    if (imagesList.length === 0) return
+
     setSelectedImageIndex((prev) =>
       prev === imagesList.length - 1
         ? 0
@@ -177,6 +236,7 @@ export default function AnnonceDetailPage({
             justifyContent: 'space-between',
             alignItems: 'center',
             marginBottom: '20px',
+            gap: '15px',
           }}
         >
           <div
@@ -198,6 +258,7 @@ export default function AnnonceDetailPage({
             />
 
             <button
+              type="button"
               onClick={() => router.push('/')}
               style={{
                 padding: '8px 15px',
@@ -216,6 +277,7 @@ export default function AnnonceDetailPage({
             !annonce.validated &&
             annonce.status !== 'validé' && (
               <button
+                type="button"
                 onClick={handleValidateAnnonce}
                 style={{
                   padding: '8px 15px',
@@ -276,6 +338,7 @@ export default function AnnonceDetailPage({
                 {imagesList.length > 1 && (
                   <>
                     <button
+                      type="button"
                       onClick={handlePrevImage}
                       style={{
                         position: 'absolute',
@@ -283,7 +346,7 @@ export default function AnnonceDetailPage({
                         top: '50%',
                         transform: 'translateY(-50%)',
                         backgroundColor:
-                          'rgba(0, 0, 0, 0.5)',
+                          'rgba(0,0,0,0.5)',
                         color: 'white',
                         border: 'none',
                         borderRadius: '50%',
@@ -291,15 +354,13 @@ export default function AnnonceDetailPage({
                         height: '40px',
                         cursor: 'pointer',
                         fontSize: '18px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
                       }}
                     >
                       ❮
                     </button>
 
                     <button
+                      type="button"
                       onClick={handleNextImage}
                       style={{
                         position: 'absolute',
@@ -307,7 +368,7 @@ export default function AnnonceDetailPage({
                         top: '50%',
                         transform: 'translateY(-50%)',
                         backgroundColor:
-                          'rgba(0, 0, 0, 0.5)',
+                          'rgba(0,0,0,0.5)',
                         color: 'white',
                         border: 'none',
                         borderRadius: '50%',
@@ -315,9 +376,6 @@ export default function AnnonceDetailPage({
                         height: '40px',
                         cursor: 'pointer',
                         fontSize: '18px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
                       }}
                     >
                       ❯
@@ -329,7 +387,7 @@ export default function AnnonceDetailPage({
                         bottom: '10px',
                         right: '10px',
                         backgroundColor:
-                          'rgba(0, 0, 0, 0.6)',
+                          'rgba(0,0,0,0.6)',
                         color: 'white',
                         padding: '4px 8px',
                         borderRadius: '4px',
@@ -355,49 +413,43 @@ export default function AnnonceDetailPage({
                     paddingBottom: '5px',
                   }}
                 >
-                  {imagesList.map(
-                    (url, index) => (
-                      <div
-                        key={index}
-                        onClick={() =>
-                          setSelectedImageIndex(
-                            index
-                          )
-                        }
+                  {imagesList.map((url, index) => (
+                    <div
+                      key={index}
+                      onClick={() =>
+                        setSelectedImageIndex(index)
+                      }
+                      style={{
+                        minWidth: '70px',
+                        width: '70px',
+                        height: '70px',
+                        borderRadius: '6px',
+                        overflow: 'hidden',
+                        border:
+                          selectedImageIndex === index
+                            ? '2px solid #2ecc71'
+                            : '1px solid #475569',
+                        backgroundColor: '#0f172a',
+                        cursor: 'pointer',
+                        opacity:
+                          selectedImageIndex === index
+                            ? 1
+                            : 0.6,
+                      }}
+                    >
+                      <img
+                        src={url}
+                        alt={`${annonceTitle} - photo ${
+                          index + 1
+                        }`}
                         style={{
-                          minWidth: '70px',
-                          height: '70px',
-                          borderRadius: '6px',
-                          overflow: 'hidden',
-                          border:
-                            selectedImageIndex ===
-                            index
-                              ? '2px solid #2ecc71'
-                              : '1px solid #475569',
-                          backgroundColor:
-                            '#0f172a',
-                          cursor: 'pointer',
-                          opacity:
-                            selectedImageIndex ===
-                            index
-                              ? 1
-                              : 0.6,
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
                         }}
-                      >
-                        <img
-                          src={url}
-                          alt={`${annonceTitle} - photo ${
-                            index + 1
-                          }`}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                          }}
-                        />
-                      </div>
-                    )
-                  )}
+                      />
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -547,7 +599,11 @@ export default function AnnonceDetailPage({
                   )}
                 </div>
 
-                <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    flex: 1,
+                  }}
+                >
                   <div
                     style={{
                       fontSize: '11px',
@@ -611,16 +667,14 @@ export default function AnnonceDetailPage({
                       '1px solid #cbd5e1',
                   }}
                 >
-                  <span
-                    style={{
-                      fontSize: '20px',
-                    }}
-                  >
-                    👤
-                  </span>
+                  👤
                 </div>
 
-                <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    flex: 1,
+                  }}
+                >
                   <div
                     style={{
                       fontSize: '11px',
@@ -684,12 +738,13 @@ export default function AnnonceDetailPage({
               {annonceDesc}
             </p>
 
-            {/* CHAT */}
+            {/* ACTIONS / CHAT */}
             {currentUser &&
             currentUser.id !== sellerId ? (
               <div>
                 {!showChat ? (
                   <button
+                    type="button"
                     onClick={() =>
                       setShowChat(true)
                     }
@@ -731,6 +786,7 @@ export default function AnnonceDetailPage({
               </div>
             ) : !currentUser ? (
               <button
+                type="button"
                 onClick={() =>
                   router.push('/auth')
                 }
@@ -749,18 +805,86 @@ export default function AnnonceDetailPage({
                 Connectez-vous pour contacter le
                 vendeur
               </button>
-            ) : (
+            ) : isOwner ? (
               <div
                 style={{
-                  color: '#7f8c8d',
-                  fontStyle: 'italic',
-                  textAlign: 'center',
-                  padding: '10px',
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '18px',
                 }}
               >
-                Ceci est votre propre annonce.
+                <div
+                  style={{
+                    color: '#475569',
+                    textAlign: 'center',
+                    marginBottom: '14px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                  }}
+                >
+                  Ceci est votre propre annonce.
+                </div>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns:
+                      '1fr 1fr',
+                    gap: '10px',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(
+                        `/annonces/${annonce.id}/modifier`
+                      )
+                    }
+                    style={{
+                      backgroundColor: '#2563eb',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '12px 14px',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ✏️ Modifier mon annonce
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={
+                      handleDeleteOwnAnnonce
+                    }
+                    disabled={deleting}
+                    style={{
+                      backgroundColor: '#fff1f2',
+                      color: '#be123c',
+                      border:
+                        '1px solid #fecdd3',
+                      padding: '12px 14px',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      cursor: deleting
+                        ? 'wait'
+                        : 'pointer',
+                      opacity: deleting
+                        ? 0.65
+                        : 1,
+                    }}
+                  >
+                    {deleting
+                      ? 'Suppression...'
+                      : '🗑️ Supprimer mon annonce'}
+                  </button>
+                </div>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
