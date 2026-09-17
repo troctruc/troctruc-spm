@@ -23,7 +23,6 @@ export default function NouveauCovoiturage() {
   const [places, setPlaces] = useState('1')
   const [prix, setPrix] = useState('0')
 
-  const [contact, setContact] = useState('')
   const [description, setDescription] = useState('')
 
   useEffect(() => {
@@ -42,16 +41,6 @@ export default function NouveauCovoiturage() {
 
     getUser()
   }, [router])
-
-  function handleTypeChange(type: TypeTrajet) {
-    setTypeTrajet(type)
-
-    if (type === 'conducteur') {
-      setPlaces('1')
-    } else {
-      setPlaces('1')
-    }
-  }
 
   async function handleSubmit(
     e: React.FormEvent
@@ -77,7 +66,7 @@ export default function NouveauCovoiturage() {
 
     if (!dateTrajet) {
       alert(
-        'Veuillez indiquer la date souhaitée.'
+        'Veuillez indiquer une date.'
       )
       return
     }
@@ -94,20 +83,11 @@ export default function NouveauCovoiturage() {
           ? 'Veuillez indiquer le nombre de places disponibles.'
           : 'Veuillez indiquer le nombre de personnes à transporter.'
       )
-
       return
     }
 
     setLoading(true)
 
-    /*
-     * La colonne date_depart est un timestamptz.
-     *
-     * On crée donc une vraie date/heure.
-     * Si aucune heure n'est renseignée :
-     * midi évite les problèmes de changement
-     * de jour liés aux fuseaux horaires.
-     */
     const heurePourDate =
       heureTrajet || '12:00'
 
@@ -142,14 +122,14 @@ export default function NouveauCovoiturage() {
           prix:
             parseFloat(prix) || 0,
 
-          contact:
-            contact.trim() || '',
-
           description:
             description.trim() || null,
 
           status:
             'validé',
+
+          contact:
+            null,
         },
       ])
 
@@ -296,8 +276,7 @@ export default function NouveauCovoiturage() {
         >
           <h2
             style={{
-              margin:
-                '0 0 6px',
+              margin: '0 0 6px',
               fontSize: '22px',
               color: '#2c3e50',
             }}
@@ -307,10 +286,10 @@ export default function NouveauCovoiturage() {
 
           <p
             style={{
-              margin:
-                '0 0 25px',
+              margin: '0 0 25px',
               color: '#64748b',
               fontSize: '14px',
+              lineHeight: '1.5',
             }}
           >
             Proposez une place dans votre véhicule ou recherchez quelqu'un pour vous transporter.
@@ -327,7 +306,7 @@ export default function NouveauCovoiturage() {
               gap: '22px',
             }}
           >
-            {/* CHOIX PRINCIPAL */}
+            {/* TYPE */}
 
             <div>
               <label
@@ -346,14 +325,14 @@ export default function NouveauCovoiturage() {
                 style={{
                   display: 'grid',
                   gridTemplateColumns:
-                    '1fr 1fr',
+                    'repeat(auto-fit, minmax(230px, 1fr))',
                   gap: '12px',
                 }}
               >
                 <button
                   type="button"
                   onClick={() =>
-                    handleTypeChange(
+                    setTypeTrajet(
                       'conducteur'
                     )
                   }
@@ -376,8 +355,7 @@ export default function NouveauCovoiturage() {
                   <div
                     style={{
                       fontSize: '25px',
-                      marginBottom:
-                        '6px',
+                      marginBottom: '6px',
                     }}
                   >
                     🚗
@@ -385,12 +363,9 @@ export default function NouveauCovoiturage() {
 
                   <div
                     style={{
-                      fontWeight:
-                        '700',
-                      color:
-                        '#24313f',
-                      marginBottom:
-                        '4px',
+                      fontWeight: '700',
+                      color: '#24313f',
+                      marginBottom: '4px',
                     }}
                   >
                     Je propose un trajet
@@ -398,22 +373,19 @@ export default function NouveauCovoiturage() {
 
                   <div
                     style={{
-                      fontSize:
-                        '12px',
-                      color:
-                        '#64748b',
-                      lineHeight:
-                        '1.4',
+                      fontSize: '12px',
+                      color: '#64748b',
+                      lineHeight: '1.4',
                     }}
                   >
-                    J'ai une voiture et des places disponibles.
+                    Je conduis et j'ai une ou plusieurs places disponibles.
                   </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={() =>
-                    handleTypeChange(
+                    setTypeTrajet(
                       'passager'
                     )
                   }
@@ -436,8 +408,7 @@ export default function NouveauCovoiturage() {
                   <div
                     style={{
                       fontSize: '25px',
-                      marginBottom:
-                        '6px',
+                      marginBottom: '6px',
                     }}
                   >
                     🔎
@@ -445,12 +416,9 @@ export default function NouveauCovoiturage() {
 
                   <div
                     style={{
-                      fontWeight:
-                        '700',
-                      color:
-                        '#24313f',
-                      marginBottom:
-                        '4px',
+                      fontWeight: '700',
+                      color: '#24313f',
+                      marginBottom: '4px',
                     }}
                   >
                     Je recherche un trajet
@@ -458,12 +426,9 @@ export default function NouveauCovoiturage() {
 
                   <div
                     style={{
-                      fontSize:
-                        '12px',
-                      color:
-                        '#64748b',
-                      lineHeight:
-                        '1.4',
+                      fontSize: '12px',
+                      color: '#64748b',
+                      lineHeight: '1.4',
                     }}
                   >
                     Je cherche quelqu'un pouvant me transporter.
@@ -472,7 +437,7 @@ export default function NouveauCovoiturage() {
               </div>
             </div>
 
-            {/* MESSAGE TYPE */}
+            {/* INFORMATION */}
 
             <div
               style={{
@@ -490,24 +455,23 @@ export default function NouveauCovoiturage() {
                     : '#1e40af',
                 padding:
                   '11px 13px',
-                borderRadius:
-                  '8px',
-                fontSize:
-                  '13px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                lineHeight: '1.45',
               }}
             >
               {isConducteur
-                ? '🚗 Vous publiez une proposition de covoiturage.'
-                : '🔎 Vous publiez une recherche de covoiturage.'}
+                ? '🚗 Vous proposez des places dans votre véhicule.'
+                : '🔎 Vous recherchez quelqu’un pouvant vous transporter.'}
             </div>
 
-            {/* DÉPART / ARRIVÉE */}
+            {/* DÉPART / DESTINATION */}
 
             <div
               style={{
                 display: 'grid',
                 gridTemplateColumns:
-                  '1fr 1fr',
+                  'repeat(auto-fit, minmax(220px, 1fr))',
                 gap: '15px',
               }}
             >
@@ -562,13 +526,13 @@ export default function NouveauCovoiturage() {
               </div>
             </div>
 
-            {/* DATE HEURE */}
+            {/* DATE / HEURE */}
 
             <div
               style={{
                 display: 'grid',
                 gridTemplateColumns:
-                  '1fr 1fr',
+                  'repeat(auto-fit, minmax(220px, 1fr))',
                 gap: '15px',
               }}
             >
@@ -628,13 +592,13 @@ export default function NouveauCovoiturage() {
               </div>
             </div>
 
-            {/* PERSONNES / PRIX */}
+            {/* NOMBRE / PARTICIPATION */}
 
             <div
               style={{
                 display: 'grid',
                 gridTemplateColumns:
-                  '1fr 1fr',
+                  'repeat(auto-fit, minmax(220px, 1fr))',
                 gap: '15px',
               }}
             >
@@ -694,44 +658,14 @@ export default function NouveauCovoiturage() {
 
                 <div
                   style={{
-                    marginTop:
-                      '5px',
-                    color:
-                      '#94a3b8',
-                    fontSize:
-                      '11px',
+                    marginTop: '5px',
+                    color: '#94a3b8',
+                    fontSize: '11px',
                   }}
                 >
                   0 € = gratuit
                 </div>
               </div>
-            </div>
-
-            {/* CONTACT */}
-
-            <div>
-              <label
-                style={
-                  labelStyle
-                }
-              >
-                Contact
-              </label>
-
-              <input
-                type="text"
-                placeholder="Téléphone ou autre moyen de contact"
-                value={contact}
-                onChange={(e) =>
-                  setContact(
-                    e.target.value
-                  )
-                }
-                required
-                style={
-                  inputStyle
-                }
-              />
             </div>
 
             {/* DESCRIPTION */}
@@ -751,7 +685,7 @@ export default function NouveauCovoiturage() {
                 placeholder={
                   isConducteur
                     ? 'Point de rendez-vous, bagages possibles, détour éventuel...'
-                    : 'Expliquez votre besoin : flexibilité sur l’heure, enfants, bagages, destination précise...'
+                    : 'Expliquez votre besoin : enfants, bagages, souplesse sur l’heure, destination précise...'
                 }
                 value={
                   description
@@ -770,7 +704,28 @@ export default function NouveauCovoiturage() {
               />
             </div>
 
-            {/* SUBMIT */}
+            {/* MESSAGERIE */}
+
+            <div
+              style={{
+                backgroundColor:
+                  '#f8fafc',
+                border:
+                  '1px solid #e2e8f0',
+                padding:
+                  '12px 14px',
+                borderRadius: '8px',
+                color: '#475569',
+                fontSize: '12px',
+                lineHeight: '1.5',
+              }}
+            >
+              💬 <strong>Pas besoin d'afficher votre téléphone.</strong>
+              <br />
+              Les personnes intéressées pourront vous contacter directement via la messagerie privée TrocTruc.
+            </div>
+
+            {/* PUBLIER */}
 
             <button
               type="submit"
@@ -780,23 +735,16 @@ export default function NouveauCovoiturage() {
               style={{
                 backgroundColor:
                   '#27ae60',
-                color:
-                  'white',
+                color: '#ffffff',
                 border: 'none',
-                padding:
-                  '13px',
-                borderRadius:
-                  '7px',
-                fontSize:
-                  '15px',
-                fontWeight:
-                  'bold',
+                padding: '13px',
+                borderRadius: '7px',
+                fontSize: '15px',
+                fontWeight: 'bold',
                 cursor:
                   loading
                     ? 'wait'
                     : 'pointer',
-                marginTop:
-                  '4px',
                 opacity:
                   loading
                     ? 0.7
