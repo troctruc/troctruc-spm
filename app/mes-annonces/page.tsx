@@ -50,9 +50,12 @@ export default function MesAnnoncesPage() {
 
     if (error) {
       console.error(error)
+
       setErrorMsg(
-        "Impossible de récupérer vos annonces : " + error.message
+        "Impossible de récupérer vos annonces : " +
+          error.message
       )
+
       setLoading(false)
       return
     }
@@ -66,7 +69,9 @@ export default function MesAnnoncesPage() {
       `Voulez-vous vraiment supprimer l'annonce « ${annonce.titre} » ?\n\nCette action est définitive.`
     )
 
-    if (!confirmation) return
+    if (!confirmation) {
+      return
+    }
 
     setDeletingId(annonce.id)
     setErrorMsg('')
@@ -89,15 +94,20 @@ export default function MesAnnoncesPage() {
 
     if (error) {
       console.error(error)
+
       setErrorMsg(
-        "Impossible de supprimer l'annonce : " + error.message
+        "Impossible de supprimer l'annonce : " +
+          error.message
       )
+
       setDeletingId(null)
       return
     }
 
     setAnnonces((current) =>
-      current.filter((item) => item.id !== annonce.id)
+      current.filter(
+        (item) => item.id !== annonce.id
+      )
     )
 
     setDeletingId(null)
@@ -105,7 +115,9 @@ export default function MesAnnoncesPage() {
 
   function getStatusStyle(status: string | null) {
     switch (status) {
+      case 'validé':
       case 'validée':
+      case 'valide':
       case 'validee':
       case 'publiée':
       case 'publiee':
@@ -273,7 +285,9 @@ export default function MesAnnoncesPage() {
 
           <button
             type="button"
-            onClick={() => router.push('/annonces/nouvelle')}
+            onClick={() =>
+              router.push('/annonces/nouvelle')
+            }
             style={{
               backgroundColor: '#27ae60',
               color: '#ffffff',
@@ -345,7 +359,10 @@ export default function MesAnnoncesPage() {
             </p>
 
             <button
-              onClick={() => router.push('/annonces/nouvelle')}
+              type="button"
+              onClick={() =>
+                router.push('/annonces/nouvelle')
+              }
               style={{
                 backgroundColor: '#2563eb',
                 color: 'white',
@@ -368,9 +385,12 @@ export default function MesAnnoncesPage() {
             }}
           >
             {annonces.map((annonce) => {
-              const status = getStatusStyle(annonce.status)
+              const status =
+                getStatusStyle(annonce.status)
+
               const photo =
-                annonce.photos && annonce.photos.length > 0
+                annonce.photos &&
+                annonce.photos.length > 0
                   ? annonce.photos[0]
                   : null
 
@@ -385,7 +405,8 @@ export default function MesAnnoncesPage() {
                     display: 'flex',
                     gap: '18px',
                     alignItems: 'center',
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                    boxShadow:
+                      '0 2px 6px rgba(0,0,0,0.04)',
                   }}
                 >
                   {/* PHOTO */}
@@ -451,7 +472,8 @@ export default function MesAnnoncesPage() {
 
                       <span
                         style={{
-                          backgroundColor: status.backgroundColor,
+                          backgroundColor:
+                            status.backgroundColor,
                           color: status.color,
                           padding: '4px 8px',
                           borderRadius: '999px',
@@ -470,7 +492,8 @@ export default function MesAnnoncesPage() {
                         marginBottom: '7px',
                       }}
                     >
-                      {annonce.categorie || 'Sans catégorie'}
+                      {annonce.categorie ||
+                        'Sans catégorie'}
                     </div>
 
                     <div
@@ -493,13 +516,15 @@ export default function MesAnnoncesPage() {
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '7px',
-                      minWidth: '105px',
+                      minWidth: '115px',
                     }}
                   >
                     <button
                       type="button"
                       onClick={() =>
-                        router.push(`/annonces/${annonce.id}`)
+                        router.push(
+                          `/annonces/${annonce.id}`
+                        )
                       }
                       style={{
                         backgroundColor: '#2563eb',
@@ -518,14 +543,15 @@ export default function MesAnnoncesPage() {
                     <button
                       type="button"
                       onClick={() =>
-                        alert(
-                          "La modification d'annonce arrive juste après 🙂"
+                        router.push(
+                          `/annonces/${annonce.id}/modifier`
                         )
                       }
                       style={{
                         backgroundColor: '#ffffff',
                         color: '#475569',
-                        border: '1px solid #cbd5e1',
+                        border:
+                          '1px solid #cbd5e1',
                         borderRadius: '6px',
                         padding: '8px 10px',
                         cursor: 'pointer',
@@ -538,12 +564,17 @@ export default function MesAnnoncesPage() {
 
                     <button
                       type="button"
-                      disabled={deletingId === annonce.id}
-                      onClick={() => handleDelete(annonce)}
+                      disabled={
+                        deletingId === annonce.id
+                      }
+                      onClick={() =>
+                        handleDelete(annonce)
+                      }
                       style={{
                         backgroundColor: '#fff1f2',
                         color: '#be123c',
-                        border: '1px solid #fecdd3',
+                        border:
+                          '1px solid #fecdd3',
                         borderRadius: '6px',
                         padding: '8px 10px',
                         cursor:
@@ -553,7 +584,9 @@ export default function MesAnnoncesPage() {
                         fontWeight: '600',
                         fontSize: '13px',
                         opacity:
-                          deletingId === annonce.id ? 0.6 : 1,
+                          deletingId === annonce.id
+                            ? 0.6
+                            : 1,
                       }}
                     >
                       {deletingId === annonce.id
