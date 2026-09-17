@@ -3,83 +3,180 @@ import nodemailer from 'nodemailer'
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const annonce = body.record || body
+
+    const annonce =
+      body.record || body
 
     const isModification =
-      annonce.type === 'modification'
+      annonce.type ===
+      'modification'
 
-    const subject = isModification
-      ? `Annonce modifiée à revalider : ${annonce.titre || 'Sans titre'}`
-      : `Nouvelle annonce à valider : ${annonce.titre || 'Sans titre'}`
+    const subject =
+      isModification
+        ? `Annonce modifiée à revalider : ${
+            annonce.titre ||
+            'Sans titre'
+          }`
+        : `Nouvelle annonce à valider : ${
+            annonce.titre ||
+            'Sans titre'
+          }`
 
-    const title = isModification
-      ? "Une annonce vient d'être modifiée !"
-      : "Une nouvelle annonce vient d'être déposée !"
+    const title =
+      isModification
+        ? "Une annonce vient d'être modifiée !"
+        : "Une nouvelle annonce vient d'être déposée !"
 
-    const intro = isModification
-      ? "Le propriétaire a modifié son annonce. Elle repasse en attente de validation."
-      : "Une nouvelle annonce attend votre validation."
+    const intro =
+      isModification
+        ? "Le propriétaire a modifié son annonce. Elle repasse en attente de validation."
+        : "Une nouvelle annonce attend votre validation."
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASS,
-      },
-    })
+    if (
+      !process.env.GMAIL_USER
+    ) {
+      throw new Error(
+        'GMAIL_USER manquant dans les variables Vercel.'
+      )
+    }
 
-    await transporter.sendMail({
-      from: `"TrocTruc SPM" <${process.env.GMAIL_USER}>`,
-      to: process.env.GMAIL_USER,
-      subject,
-      html: `
-        <div style="font-family: sans-serif; padding: 20px; color: #2c3e50;">
-          <h2>${title}</h2>
+    if (
+      !process.env
+        .GMAIL_APP_PASS
+    ) {
+      throw new Error(
+        'GMAIL_APP_PASS manquant dans les variables Vercel.'
+      )
+    }
 
-          <p>${intro}</p>
+    const transporter =
+      nodemailer.createTransport(
+        {
+          service:
+            'gmail',
 
-          <p>
-            <strong>Titre :</strong>
-            ${annonce.titre || 'Sans titre'}
-          </p>
+          auth: {
+            user:
+              process.env
+                .GMAIL_USER,
 
-          <p>
-            <strong>Catégorie :</strong>
-            ${annonce.categorie || 'Non renseignée'}
-          </p>
+            pass:
+              process.env
+                .GMAIL_APP_PASS,
+          },
+        }
+      )
 
-          <p>
-            <strong>Prix :</strong>
-            ${
-              annonce.prix !== undefined &&
-              annonce.prix !== null
-                ? `${annonce.prix} €`
-                : 'Non précisé'
-            }
-          </p>
+    await transporter.verify()
 
-          <br />
+    const info =
+      await transporter.sendMail(
+        {
+          from: `"TrocTruc SPM" <${process.env.GMAIL_USER}>`,
 
-          <a
-            href="https://troctruc-spm.com/annonces/${annonce.id}"
-            style="
-              background-color: #2ecc71;
-              color: white;
-              padding: 10px 18px;
-              text-decoration: none;
-              border-radius: 6px;
-              font-weight: bold;
-              display: inline-block;
-            "
-          >
-            Voir l'annonce et la valider
-          </a>
-        </div>
-      `,
-    })
+          to:
+            process.env
+              .GMAIL_USER,
+
+          subject,
+
+          html: `
+            <div
+              style="
+                font-family: sans-serif;
+                padding: 20px;
+                color: #2c3e50;
+              "
+            >
+
+              <h2>
+                ${title}
+              </h2>
+
+              <p>
+                ${intro}
+              </p>
+
+              <p>
+                <strong>
+                  Titre :
+                </strong>
+
+                ${
+                  annonce.titre ||
+                  'Sans titre'
+                }
+              </p>
+
+              <p>
+                <strong>
+                  Catégorie :
+                </strong>
+
+                ${
+                  annonce.categorie ||
+                  'Non renseignée'
+                }
+              </p>
+
+              <p>
+                <strong>
+                  Prix :
+                </strong>
+
+                ${
+                  annonce.prix !==
+                    undefined &&
+                  annonce.prix !==
+                    null
+                    ? `${annonce.prix} €`
+                    : 'Non précisé'
+                }
+              </p>
+
+              <p>
+                <strong>
+                  Statut :
+                </strong>
+
+                En attente de validation
+              </p>
+
+              <br />
+
+              <a
+                href="https://troctruc-spm.com/annonces/${annonce.id}"
+                style="
+                  background-color: #2ecc71;
+                  color: white;
+                  padding: 10px 18px;
+                  text-decoration: none;
+                  border-radius: 6px;
+                  font-weight: bold;
+                  display: inline-block;
+                "
+              >
+                Voir l'annonce et la valider
+              </a>
+
+            </div>
+          `,
+        }
+      )
+
+    console.log(
+      'Notification admin envoyée :',
+      info.messageId
+    )
 
     return Response.json({
       success: true,
+      messageId:
+        info.messageId,
+      type:
+        isModification
+          ? 'modification'
+          : 'creation',
     })
   } catch (err: any) {
     console.error(
@@ -89,7 +186,11 @@ export async function POST(req: Request) {
 
     return Response.json(
       {
-        error: err.message,
+        success: false,
+
+        error:
+          err?.message ||
+          'Erreur inconnue',
       },
       {
         status: 500,

@@ -1,61 +1,34 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import {
-  useParams,
-  useRouter,
-} from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 export default function ModifierAnnoncePage() {
   const router = useRouter()
-  const params = useParams()
+  const params = useParams<{ id: string }>()
 
-  const annonceId = Array.isArray(params?.id)
-    ? params.id[0]
-    : (params?.id as string)
+  const annonceId = params?.id
 
   const [user, setUser] = useState<any>(null)
 
-  const [loading, setLoading] =
-    useState(true)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
-  const [saving, setSaving] =
-    useState(false)
-
-  const [uploading, setUploading] =
-    useState(false)
-
-  const [errorMsg, setErrorMsg] =
-    useState('')
+  const [errorMsg, setErrorMsg] = useState('')
 
   const [titre, setTitre] = useState('')
-  const [description, setDescription] =
-    useState('')
-
+  const [description, setDescription] = useState('')
   const [prix, setPrix] = useState('')
 
-  const [categorie, setCategorie] =
-    useState('Maison')
+  const [categorie, setCategorie] = useState('Maison')
+  const [sousCategorie, setSousCategorie] = useState('')
 
-  const [
-    sousCategorie,
-    setSousCategorie,
-  ] = useState('')
+  const [typeAnnonce, setTypeAnnonce] = useState('vente')
+  const [localisation, setLocalisation] = useState('Saint-Pierre')
 
-  const [
-    typeAnnonce,
-    setTypeAnnonce,
-  ] = useState('vente')
-
-  const [
-    localisation,
-    setLocalisation,
-  ] = useState('Saint-Pierre')
-
-  const [photos, setPhotos] = useState<
-    string[]
-  >([])
+  const [photos, setPhotos] = useState<string[]>([])
 
   const categories = [
     'Maison',
@@ -84,7 +57,9 @@ export default function ModifierAnnoncePage() {
 
   useEffect(() => {
     async function loadAnnonce() {
-      if (!annonceId) return
+      if (!annonceId) {
+        return
+      }
 
       const {
         data: { user },
@@ -97,15 +72,14 @@ export default function ModifierAnnoncePage() {
 
       setUser(user)
 
-      const { data, error } =
-        await supabase
-          .from('annonces')
-          .select(
-            'id, titre, description, prix, categorie, photos, status, validated, user_id'
-          )
-          .eq('id', annonceId)
-          .eq('user_id', user.id)
-          .maybeSingle()
+      const { data, error } = await supabase
+        .from('annonces')
+        .select(
+          'id, titre, description, prix, categorie, photos, status, validated, user_id'
+        )
+        .eq('id', annonceId)
+        .eq('user_id', user.id)
+        .maybeSingle()
 
       if (error) {
         setErrorMsg(
@@ -161,21 +135,27 @@ export default function ModifierAnnoncePage() {
     const parts =
       storedDescription.split('\n\n')
 
-    const firstLine = parts[0] || ''
+    const firstLine =
+      parts[0] || ''
 
-    if (!firstLine.startsWith('Type :')) {
+    if (
+      !firstLine.startsWith('Type :')
+    ) {
       setDescription(storedDescription)
       return
     }
 
-    const metaParts = firstLine
-      .split('|')
-      .map((part) => part.trim())
+    const metaParts =
+      firstLine
+        .split('|')
+        .map((part) =>
+          part.trim()
+        )
 
-    const typePart = metaParts.find(
-      (part) =>
+    const typePart =
+      metaParts.find((part) =>
         part.startsWith('Type :')
-    )
+      )
 
     const locationPart =
       metaParts.find((part) =>
@@ -191,16 +171,25 @@ export default function ModifierAnnoncePage() {
         )
       )
 
-    const storedType = typePart
-      ?.replace('Type :', '')
-      .trim()
-      .toUpperCase()
+    const storedType =
+      typePart
+        ?.replace('Type :', '')
+        .trim()
+        .toUpperCase()
 
-    if (storedType === 'RECHERCHES') {
-      setTypeAnnonce('recherche')
-    } else if (storedType === 'TROC') {
+    if (
+      storedType === 'RECHERCHES'
+    ) {
+      setTypeAnnonce(
+        'recherche'
+      )
+    } else if (
+      storedType === 'TROC'
+    ) {
       setTypeAnnonce('troc')
-    } else if (storedType === 'DON') {
+    } else if (
+      storedType === 'DON'
+    ) {
       setTypeAnnonce('don')
     } else {
       setTypeAnnonce('vente')
@@ -229,7 +218,9 @@ export default function ModifierAnnoncePage() {
     }
 
     setDescription(
-      parts.slice(1).join('\n\n')
+      parts
+        .slice(1)
+        .join('\n\n')
     )
   }
 
@@ -243,12 +234,14 @@ export default function ModifierAnnoncePage() {
       return
     }
 
-    const files = Array.from(
-      e.target.files
-    )
+    const files =
+      Array.from(
+        e.target.files
+      )
 
     if (
-      photos.length + files.length >
+      photos.length +
+        files.length >
       5
     ) {
       alert(
@@ -260,7 +253,9 @@ export default function ModifierAnnoncePage() {
     setUploading(true)
 
     try {
-      const newPhotos = [...photos]
+      const newPhotos = [
+        ...photos,
+      ]
 
       for (const file of files) {
         const compressedBase64 =
@@ -299,8 +294,11 @@ export default function ModifierAnnoncePage() {
 
         reader.readAsDataURL(file)
 
-        reader.onload = (event) => {
-          const img = new Image()
+        reader.onload = (
+          event
+        ) => {
+          const img =
+            new Image()
 
           img.src =
             event.target
@@ -312,21 +310,31 @@ export default function ModifierAnnoncePage() {
                 'canvas'
               )
 
-            let width = img.width
-            let height = img.height
+            let width =
+              img.width
 
-            if (width > maxWidth) {
-              height = Math.round(
-                (height *
-                  maxWidth) /
-                  width
-              )
+            let height =
+              img.height
 
-              width = maxWidth
+            if (
+              width > maxWidth
+            ) {
+              height =
+                Math.round(
+                  (height *
+                    maxWidth) /
+                    width
+                )
+
+              width =
+                maxWidth
             }
 
-            canvas.width = width
-            canvas.height = height
+            canvas.width =
+              width
+
+            canvas.height =
+              height
 
             const ctx =
               canvas.getContext(
@@ -339,6 +347,7 @@ export default function ModifierAnnoncePage() {
                   "Impossible d'obtenir le contexte canvas"
                 )
               )
+
               return
             }
 
@@ -358,10 +367,12 @@ export default function ModifierAnnoncePage() {
             )
           }
 
-          img.onerror = reject
+          img.onerror =
+            reject
         }
 
-        reader.onerror = reject
+        reader.onerror =
+          reject
       }
     )
   }
@@ -371,7 +382,8 @@ export default function ModifierAnnoncePage() {
   ) {
     setPhotos(
       photos.filter(
-        (_, i) => i !== index
+        (_, i) =>
+          i !== index
       )
     )
   }
@@ -381,7 +393,10 @@ export default function ModifierAnnoncePage() {
   ) {
     e.preventDefault()
 
-    if (!user || !annonceId) {
+    if (
+      !user ||
+      !annonceId
+    ) {
       return
     }
 
@@ -392,6 +407,7 @@ export default function ModifierAnnoncePage() {
       alert(
         'Veuillez remplir le titre et la description.'
       )
+
       return
     }
 
@@ -402,6 +418,7 @@ export default function ModifierAnnoncePage() {
       alert(
         'Veuillez choisir une sous-catégorie pour la mode.'
       )
+
       return
     }
 
@@ -417,14 +434,17 @@ export default function ModifierAnnoncePage() {
         alert(
           'Veuillez indiquer un prix valide.'
         )
+
         return
       }
 
-      prixFinal = Number(prix)
+      prixFinal =
+        Number(prix)
     }
 
     const typeLabel =
-      typeAnnonce === 'recherche'
+      typeAnnonce ===
+      'recherche'
         ? 'RECHERCHES'
         : typeAnnonce.toUpperCase()
 
@@ -444,30 +464,123 @@ export default function ModifierAnnoncePage() {
       await supabase
         .from('annonces')
         .update({
-          titre: titre.trim(),
+          titre:
+            titre.trim(),
+
           description:
             formattedDescription,
-          prix: prixFinal,
+
+          prix:
+            prixFinal,
+
           categorie,
+
           photos,
 
-          // Une modification
-          // repasse par validation.
-          status: 'en attente',
-          validated: false,
-        })
-        .eq('id', annonceId)
-        .eq('user_id', user.id)
+          status:
+            'en attente',
 
-    setSaving(false)
+          validated:
+            false,
+        })
+        .eq(
+          'id',
+          annonceId
+        )
+        .eq(
+          'user_id',
+          user.id
+        )
 
     if (error) {
+      setSaving(false)
+
       setErrorMsg(
         "Impossible de modifier l'annonce : " +
           error.message
       )
+
       return
     }
+
+    /*
+      NOTIFICATION ADMINISTRATEUR
+      ------------------------------------------------
+      À ce stade, l'annonce est bien modifiée.
+      On prévient maintenant l'administrateur qu'elle
+      doit être revalidée.
+    */
+
+    try {
+      const notificationResponse =
+        await fetch(
+          '/api/notify-admin',
+          {
+            method: 'POST',
+
+            headers: {
+              'Content-Type':
+                'application/json',
+            },
+
+            body:
+              JSON.stringify({
+                id: annonceId,
+
+                titre:
+                  titre.trim(),
+
+                categorie,
+
+                prix:
+                  prixFinal,
+
+                status:
+                  'en attente',
+
+                user_id:
+                  user.id,
+
+                type:
+                  'modification',
+              }),
+          }
+        )
+
+      const notificationData =
+        await notificationResponse.json()
+
+      if (
+        !notificationResponse.ok
+      ) {
+        console.error(
+          'Erreur notification admin :',
+          notificationData
+        )
+
+        alert(
+          "L'annonce a bien été modifiée, mais la notification administrateur n'a pas pu être envoyée."
+        )
+      } else {
+        console.log(
+          'Notification admin envoyée avec succès :',
+          notificationData
+        )
+      }
+    } catch (
+      notificationError
+    ) {
+      console.error(
+        'Erreur notification admin :',
+        notificationError
+      )
+
+      alert(
+        "L'annonce a bien été modifiée, mais une erreur est survenue lors de l'envoi de la notification administrateur."
+      )
+    }
+
+    setSaving(false)
 
     alert(
       "Votre annonce a été modifiée. Elle repasse en attente de validation."
@@ -484,11 +597,21 @@ export default function ModifierAnnoncePage() {
     return (
       <div
         style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: 'sans-serif',
+          minHeight:
+            '100vh',
+
+          display:
+            'flex',
+
+          alignItems:
+            'center',
+
+          justifyContent:
+            'center',
+
+          fontFamily:
+            'sans-serif',
+
           backgroundColor:
             '#f4f6f8',
         }}
@@ -498,36 +621,54 @@ export default function ModifierAnnoncePage() {
     )
   }
 
-  if (errorMsg && !titre) {
+  if (
+    errorMsg &&
+    !titre
+  ) {
     return (
       <div
         style={{
-          minHeight: '100vh',
+          minHeight:
+            '100vh',
+
           backgroundColor:
             '#f4f6f8',
-          fontFamily: 'sans-serif',
-          padding: '40px 20px',
+
+          fontFamily:
+            'sans-serif',
+
+          padding:
+            '40px 20px',
         }}
       >
         <div
           style={{
-            maxWidth: '700px',
-            margin: '0 auto',
-            backgroundColor: '#fff',
-            borderRadius: '12px',
-            padding: '30px',
+            maxWidth:
+              '700px',
+
+            margin:
+              '0 auto',
+
+            backgroundColor:
+              '#fff',
+
+            borderRadius:
+              '12px',
+
+            padding:
+              '30px',
           }}
         >
           <p
             style={{
-              color: '#b91c1c',
+              color:
+                '#b91c1c',
             }}
           >
             {errorMsg}
           </p>
 
           <button
-            type="button"
             onClick={() =>
               router.push(
                 '/mes-annonces'
@@ -544,22 +685,40 @@ export default function ModifierAnnoncePage() {
   return (
     <div
       style={{
-        minHeight: '100vh',
-        backgroundColor: '#f4f6f8',
-        paddingBottom: '60px',
-        fontFamily: 'sans-serif',
+        minHeight:
+          '100vh',
+
+        backgroundColor:
+          '#f4f6f8',
+
+        paddingBottom:
+          '60px',
+
+        fontFamily:
+          'sans-serif',
       }}
     >
+      {/* HEADER */}
+
       <header
         style={{
-          backgroundColor: '#ffffff',
+          backgroundColor:
+            '#ffffff',
+
           borderBottom:
             '1px solid #e1e4e8',
-          padding: '15px 30px',
-          display: 'flex',
+
+          padding:
+            '15px 30px',
+
+          display:
+            'flex',
+
           justifyContent:
             'space-between',
-          alignItems: 'center',
+
+          alignItems:
+            'center',
         }}
       >
         <div
@@ -567,20 +726,34 @@ export default function ModifierAnnoncePage() {
             router.push('/')
           }
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            cursor: 'pointer',
+            display:
+              'flex',
+
+            alignItems:
+              'center',
+
+            gap:
+              '12px',
+
+            cursor:
+              'pointer',
           }}
         >
           <img
             src="/puffin-logo.jpeg"
             alt="TrocTruc SPM"
             style={{
-              width: '45px',
-              height: '45px',
-              objectFit: 'contain',
-              borderRadius: '8px',
+              width:
+                '45px',
+
+              height:
+                '45px',
+
+              objectFit:
+                'contain',
+
+              borderRadius:
+                '8px',
             }}
           />
 
@@ -588,8 +761,12 @@ export default function ModifierAnnoncePage() {
             <h1
               style={{
                 margin: 0,
-                fontSize: '18px',
-                color: '#2c3e50',
+
+                fontSize:
+                  '18px',
+
+                color:
+                  '#2c3e50',
               }}
             >
               TrocTruc SPM
@@ -598,8 +775,12 @@ export default function ModifierAnnoncePage() {
             <p
               style={{
                 margin: 0,
-                fontSize: '11px',
-                color: '#7f8c8d',
+
+                fontSize:
+                  '11px',
+
+                color:
+                  '#7f8c8d',
               }}
             >
               Modifier mon annonce
@@ -615,34 +796,57 @@ export default function ModifierAnnoncePage() {
             )
           }
           style={{
-            background: 'none',
+            background:
+              'none',
+
             border:
               '1px solid #cbd5e1',
-            padding: '7px 12px',
-            borderRadius: '6px',
-            color: '#475569',
-            cursor: 'pointer',
+
+            padding:
+              '7px 12px',
+
+            borderRadius:
+              '6px',
+
+            color:
+              '#475569',
+
+            cursor:
+              'pointer',
           }}
         >
           ← Annuler
         </button>
       </header>
 
+      {/* FORMULAIRE */}
+
       <main
         style={{
-          maxWidth: '700px',
-          margin: '30px auto',
-          padding: '0 20px',
+          maxWidth:
+            '700px',
+
+          margin:
+            '30px auto',
+
+          padding:
+            '0 20px',
         }}
       >
         <div
           style={{
             backgroundColor:
               '#ffffff',
-            borderRadius: '12px',
-            padding: '30px',
+
+            borderRadius:
+              '12px',
+
+            padding:
+              '30px',
+
             boxShadow:
               '0 2px 8px rgba(0,0,0,0.05)',
+
             border:
               '1px solid #e1e4e8',
           }}
@@ -650,7 +854,9 @@ export default function ModifierAnnoncePage() {
           <h2
             style={{
               marginTop: 0,
-              color: '#2c3e50',
+
+              color:
+                '#2c3e50',
             }}
           >
             ✏️ Modifier mon annonce
@@ -658,14 +864,17 @@ export default function ModifierAnnoncePage() {
 
           <p
             style={{
-              fontSize: '13px',
-              color: '#64748b',
-              marginBottom: '25px',
+              fontSize:
+                '13px',
+
+              color:
+                '#64748b',
+
+              marginBottom:
+                '25px',
             }}
           >
-            Après modification,
-            l'annonce repassera en
-            attente de validation.
+            Après modification, l'annonce repassera en attente de validation.
           </p>
 
           {errorMsg && (
@@ -673,10 +882,18 @@ export default function ModifierAnnoncePage() {
               style={{
                 backgroundColor:
                   '#fee2e2',
-                color: '#b91c1c',
-                padding: '12px',
-                borderRadius: '7px',
-                marginBottom: '20px',
+
+                color:
+                  '#b91c1c',
+
+                padding:
+                  '12px',
+
+                borderRadius:
+                  '7px',
+
+                marginBottom:
+                  '20px',
               }}
             >
               {errorMsg}
@@ -688,27 +905,39 @@ export default function ModifierAnnoncePage() {
               handleSubmit
             }
             style={{
-              display: 'flex',
+              display:
+                'flex',
+
               flexDirection:
                 'column',
-              gap: '20px',
+
+              gap:
+                '20px',
             }}
           >
+            {/* TYPE */}
+
             <div>
               <label
-                style={labelStyle}
+                style={
+                  labelStyle
+                }
               >
                 Type d'annonce
               </label>
 
               <select
-                value={typeAnnonce}
+                value={
+                  typeAnnonce
+                }
                 onChange={(e) =>
                   setTypeAnnonce(
                     e.target.value
                   )
                 }
-                style={inputStyle}
+                style={
+                  inputStyle
+                }
               >
                 <option value="vente">
                   Vente
@@ -728,11 +957,15 @@ export default function ModifierAnnoncePage() {
               </select>
             </div>
 
+            {/* TITRE */}
+
             <div>
               <label
-                style={labelStyle}
+                style={
+                  labelStyle
+                }
               >
-                Titre de l'annonce
+                Titre
               </label>
 
               <input
@@ -744,48 +977,69 @@ export default function ModifierAnnoncePage() {
                     e.target.value
                   )
                 }
-                style={inputStyle}
+                style={
+                  inputStyle
+                }
               />
             </div>
 
+            {/* CATEGORIE + LOCALISATION */}
+
             <div
               style={{
-                display: 'grid',
+                display:
+                  'grid',
+
                 gridTemplateColumns:
                   '1fr 1fr',
-                gap: '15px',
+
+                gap:
+                  '15px',
               }}
             >
               <div>
                 <label
-                  style={labelStyle}
+                  style={
+                    labelStyle
+                  }
                 >
                   Catégorie
                 </label>
 
                 <select
-                  value={categorie}
+                  value={
+                    categorie
+                  }
                   onChange={(e) => {
                     const next =
                       e.target.value
 
-                    setCategorie(next)
+                    setCategorie(
+                      next
+                    )
 
                     if (
-                      next !== 'Mode'
+                      next !==
+                      'Mode'
                     ) {
                       setSousCategorie(
                         ''
                       )
                     }
                   }}
-                  style={inputStyle}
+                  style={
+                    inputStyle
+                  }
                 >
                   {categories.map(
                     (cat) => (
                       <option
-                        key={cat}
-                        value={cat}
+                        key={
+                          cat
+                        }
+                        value={
+                          cat
+                        }
                       >
                         {cat}
                       </option>
@@ -799,25 +1053,30 @@ export default function ModifierAnnoncePage() {
                     value={
                       sousCategorie
                     }
-                    onChange={(e) =>
+                    onChange={(
+                      e
+                    ) =>
                       setSousCategorie(
-                        e.target.value
+                        e.target
+                          .value
                       )
                     }
                     required
                     style={{
                       ...inputStyle,
+
                       marginTop:
                         '10px',
                     }}
                   >
                     <option value="">
-                      Choisir une
-                      sous-catégorie
+                      Choisir une sous-catégorie
                     </option>
 
                     {modeSubcategories.map(
-                      (subcat) => (
+                      (
+                        subcat
+                      ) => (
                         <option
                           key={
                             subcat
@@ -826,7 +1085,9 @@ export default function ModifierAnnoncePage() {
                             subcat
                           }
                         >
-                          {subcat}
+                          {
+                            subcat
+                          }
                         </option>
                       )
                     )}
@@ -836,25 +1097,38 @@ export default function ModifierAnnoncePage() {
 
               <div>
                 <label
-                  style={labelStyle}
+                  style={
+                    labelStyle
+                  }
                 >
                   Localisation
                 </label>
 
                 <select
-                  value={localisation}
-                  onChange={(e) =>
+                  value={
+                    localisation
+                  }
+                  onChange={(
+                    e
+                  ) =>
                     setLocalisation(
-                      e.target.value
+                      e.target
+                        .value
                     )
                   }
-                  style={inputStyle}
+                  style={
+                    inputStyle
+                  }
                 >
                   {locations.map(
                     (loc) => (
                       <option
-                        key={loc}
-                        value={loc}
+                        key={
+                          loc
+                        }
+                        value={
+                          loc
+                        }
                       >
                         {loc}
                       </option>
@@ -863,6 +1137,8 @@ export default function ModifierAnnoncePage() {
                 </select>
               </div>
             </div>
+
+            {/* PRIX */}
 
             {typeAnnonce ===
               'vente' && (
@@ -880,19 +1156,28 @@ export default function ModifierAnnoncePage() {
                   min="0"
                   required
                   value={prix}
-                  onChange={(e) =>
+                  onChange={(
+                    e
+                  ) =>
                     setPrix(
-                      e.target.value
+                      e.target
+                        .value
                     )
                   }
-                  style={inputStyle}
+                  style={
+                    inputStyle
+                  }
                 />
               </div>
             )}
 
+            {/* DESCRIPTION */}
+
             <div>
               <label
-                style={labelStyle}
+                style={
+                  labelStyle
+                }
               >
                 Description
               </label>
@@ -900,22 +1185,31 @@ export default function ModifierAnnoncePage() {
               <textarea
                 rows={6}
                 required
-                value={description}
+                value={
+                  description
+                }
                 onChange={(e) =>
                   setDescription(
-                    e.target.value
+                    e.target
+                      .value
                   )
                 }
                 style={{
                   ...inputStyle,
-                  resize: 'vertical',
+
+                  resize:
+                    'vertical',
                 }}
               />
             </div>
 
+            {/* PHOTOS */}
+
             <div>
               <label
-                style={labelStyle}
+                style={
+                  labelStyle
+                }
               >
                 Photos (maximum 5)
               </label>
@@ -932,21 +1226,30 @@ export default function ModifierAnnoncePage() {
               {uploading && (
                 <p
                   style={{
-                    color: '#e67e22',
-                    fontSize: '12px',
+                    color:
+                      '#e67e22',
+
+                    fontSize:
+                      '12px',
                   }}
                 >
-                  Compression des
-                  photos...
+                  Compression des photos...
                 </p>
               )}
 
-              {photos.length > 0 && (
+              {photos.length >
+                0 && (
                 <div
                   style={{
-                    display: 'flex',
-                    gap: '10px',
-                    flexWrap: 'wrap',
+                    display:
+                      'flex',
+
+                    gap:
+                      '10px',
+
+                    flexWrap:
+                      'wrap',
+
                     marginTop:
                       '12px',
                   }}
@@ -957,32 +1260,44 @@ export default function ModifierAnnoncePage() {
                       index
                     ) => (
                       <div
-                        key={index}
+                        key={
+                          index
+                        }
                         style={{
                           position:
                             'relative',
+
                           width:
                             '90px',
+
                           height:
                             '90px',
+
                           overflow:
                             'hidden',
+
                           borderRadius:
                             '7px',
+
                           border:
                             '1px solid #cbd5e1',
                         }}
                       >
                         <img
-                          src={photo}
+                          src={
+                            photo
+                          }
                           alt={`Photo ${
-                            index + 1
+                            index +
+                            1
                           }`}
                           style={{
                             width:
                               '100%',
+
                             height:
                               '100%',
+
                             objectFit:
                               'cover',
                           }}
@@ -998,20 +1313,31 @@ export default function ModifierAnnoncePage() {
                           style={{
                             position:
                               'absolute',
-                            top: '3px',
-                            right: '3px',
+
+                            top:
+                              '3px',
+
+                            right:
+                              '3px',
+
                             width:
                               '22px',
+
                             height:
                               '22px',
+
                             borderRadius:
                               '50%',
+
                             border:
                               'none',
+
                             backgroundColor:
                               '#dc2626',
+
                             color:
                               '#fff',
+
                             cursor:
                               'pointer',
                           }}
@@ -1025,6 +1351,8 @@ export default function ModifierAnnoncePage() {
               )}
             </div>
 
+            {/* ENREGISTRER */}
+
             <button
               type="submit"
               disabled={
@@ -1034,17 +1362,31 @@ export default function ModifierAnnoncePage() {
               style={{
                 backgroundColor:
                   '#2563eb',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '7px',
-                padding: '13px',
-                fontSize: '15px',
-                fontWeight: 'bold',
+
+                color:
+                  '#ffffff',
+
+                border:
+                  'none',
+
+                borderRadius:
+                  '7px',
+
+                padding:
+                  '13px',
+
+                fontSize:
+                  '15px',
+
+                fontWeight:
+                  'bold',
+
                 cursor:
                   saving ||
                   uploading
                     ? 'wait'
                     : 'pointer',
+
                 opacity:
                   saving ||
                   uploading
@@ -1063,20 +1405,44 @@ export default function ModifierAnnoncePage() {
   )
 }
 
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  fontWeight: '600',
-  fontSize: '14px',
-  color: '#334155',
-  marginBottom: '7px',
+const labelStyle:
+  React.CSSProperties = {
+  display:
+    'block',
+
+  fontWeight:
+    '600',
+
+  fontSize:
+    '14px',
+
+  color:
+    '#334155',
+
+  marginBottom:
+    '7px',
 }
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '10px 12px',
-  borderRadius: '6px',
-  border: '1px solid #cbd5e1',
-  fontSize: '14px',
-  boxSizing: 'border-box',
-  backgroundColor: '#ffffff',
+const inputStyle:
+  React.CSSProperties = {
+  width:
+    '100%',
+
+  padding:
+    '10px 12px',
+
+  borderRadius:
+    '6px',
+
+  border:
+    '1px solid #cbd5e1',
+
+  fontSize:
+    '14px',
+
+  boxSizing:
+    'border-box',
+
+  backgroundColor:
+    '#ffffff',
 }
