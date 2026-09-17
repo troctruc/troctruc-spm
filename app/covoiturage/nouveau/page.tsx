@@ -1,258 +1,836 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
+type TypeTrajet = 'conducteur' | 'passager'
+
 export default function NouveauCovoiturage() {
   const router = useRouter()
+
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
-  const [typeTrajet, setTypeTrajet] = useState<'conducteur' | 'passager'>('conducteur')
+  const [typeTrajet, setTypeTrajet] =
+    useState<TypeTrajet>('conducteur')
+
   const [depart, setDepart] = useState('')
   const [arrivee, setArrivee] = useState('')
   const [dateTrajet, setDateTrajet] = useState('')
   const [heureTrajet, setHeureTrajet] = useState('')
+
   const [places, setPlaces] = useState('1')
   const [prix, setPrix] = useState('0')
-  const [contactTel, setContactTel] = useState('')
+
+  const [contact, setContact] = useState('')
   const [description, setDescription] = useState('')
 
   useEffect(() => {
     async function getUser() {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
       if (!user) {
         router.push('/auth')
-      } else {
-        setUser(user)
+        return
       }
+
+      setUser(user)
     }
+
     getUser()
   }, [router])
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleTypeChange(type: TypeTrajet) {
+    setTypeTrajet(type)
+
+    if (type === 'conducteur') {
+      setPlaces('1')
+    } else {
+      setPlaces('1')
+    }
+  }
+
+  async function handleSubmit(
+    e: React.FormEvent
+  ) {
     e.preventDefault()
+
     if (!user) {
-      alert("Erreur : Utilisateur non connecté.")
+      alert(
+        'Vous devez être connecté pour publier un covoiturage.'
+      )
       return
     }
 
-    if (!depart.trim() || !arrivee.trim()) {
-      alert("Veuillez renseigner un lieu de départ et d'arrivée.")
+    if (
+      !depart.trim() ||
+      !arrivee.trim()
+    ) {
+      alert(
+        "Veuillez renseigner le lieu de départ et la destination."
+      )
       return
     }
 
     if (!dateTrajet) {
-      alert("Veuillez indiquer une date pour le trajet.")
+      alert(
+        'Veuillez indiquer la date souhaitée.'
+      )
+      return
+    }
+
+    const nombrePlaces =
+      parseInt(places, 10)
+
+    if (
+      !nombrePlaces ||
+      nombrePlaces < 1
+    ) {
+      alert(
+        typeTrajet === 'conducteur'
+          ? 'Veuillez indiquer le nombre de places disponibles.'
+          : 'Veuillez indiquer le nombre de personnes à transporter.'
+      )
+
       return
     }
 
     setLoading(true)
 
-    const { error } = await supabase.from('covoiturages').insert([
-      {
-        user_id: user.id,
-        user_email: user.email,
-        type: typeTrajet,
-        depart: depart.trim(),
-        arrivee: arrivee.trim(),
-        date_trajet: dateTrajet,
-        heure_trajet: heureTrajet || null,
-        places: parseInt(places, 10) || 1,
-        prix: parseFloat(prix) || 0,
-        contact_tel: contactTel.trim() || null,
-        description: description.trim() || null,
-        status: 'validé'
-      }
-    ])
+    /*
+     * La colonne date_depart est un timestamptz.
+     *
+     * On crée donc une vraie date/heure.
+     * Si aucune heure n'est renseignée :
+     * midi évite les problèmes de changement
+     * de jour liés aux fuseaux horaires.
+     */
+    const heurePourDate =
+      heureTrajet || '12:00'
+
+    const dateDepart =
+      new Date(
+        `${dateTrajet}T${heurePourDate}:00`
+      ).toISOString()
+
+    const { error } = await supabase
+      .from('covoiturages')
+      .insert([
+        {
+          user_id: user.id,
+
+          type: typeTrajet,
+
+          lieu_depart:
+            depart.trim(),
+
+          lieu_arrivee:
+            arrivee.trim(),
+
+          date_depart:
+            dateDepart,
+
+          heure_indicative:
+            heureTrajet || null,
+
+          places:
+            nombrePlaces,
+
+          prix:
+            parseFloat(prix) || 0,
+
+          contact:
+            contact.trim() || '',
+
+          description:
+            description.trim() || null,
+
+          status:
+            'validé',
+        },
+      ])
 
     setLoading(false)
 
     if (error) {
-      console.error("Erreur création covoiturage :", error)
-      alert("Erreur lors de la publication : " + error.message)
-    } else {
-      alert("Trajet de covoiturage publié avec succès !")
-      router.push('/covoiturage')
+      console.error(
+        'Erreur création covoiturage :',
+        error
+      )
+
+      alert(
+        'Erreur lors de la publication : ' +
+          error.message
+      )
+
+      return
     }
+
+    alert(
+      typeTrajet === 'conducteur'
+        ? 'Votre proposition de trajet a été publiée !'
+        : 'Votre recherche de trajet a été publiée !'
+    )
+
+    router.push('/covoiturage')
+    router.refresh()
   }
 
+  const isConducteur =
+    typeTrajet === 'conducteur'
+
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f4f6f8', paddingBottom: '60px' }}>
-      
-      {/* HEADER IDENTIQUE AU DÉPÔT D'ANNONCE */}
-      <header style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e1e4e8', padding: '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => router.push('/')}>
-          <img 
-            src="/puffin-logo.jpeg" 
-            alt="Logo TrocTruc SPM" 
-            style={{ width: '45px', height: '45px', objectFit: 'contain', backgroundColor: 'transparent', borderRadius: '8px' }} 
+    <div
+      style={{
+        minHeight: '100vh',
+        backgroundColor: '#f4f6f8',
+        paddingBottom: '60px',
+        fontFamily:
+          'system-ui, -apple-system, sans-serif',
+      }}
+    >
+      {/* HEADER */}
+
+      <header
+        style={{
+          backgroundColor: '#ffffff',
+          borderBottom:
+            '1px solid #e1e4e8',
+          padding: '15px 30px',
+          display: 'flex',
+          justifyContent:
+            'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <div
+          onClick={() =>
+            router.push('/')
+          }
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            cursor: 'pointer',
+          }}
+        >
+          <img
+            src="/puffin-logo.jpeg"
+            alt="Logo TrocTruc SPM"
+            style={{
+              width: '45px',
+              height: '45px',
+              objectFit: 'contain',
+              borderRadius: '8px',
+            }}
           />
+
           <div>
-            <h1 style={{ margin: 0, fontSize: '18px', color: '#2c3e50', fontWeight: 'bold' }}>TrocTruc SPM</h1>
-            <p style={{ margin: 0, fontSize: '11px', color: '#7f8c8d' }}>Proposer un covoiturage</p>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: '18px',
+                color: '#2c3e50',
+                fontWeight: 'bold',
+              }}
+            >
+              TrocTruc SPM
+            </h1>
+
+            <p
+              style={{
+                margin: 0,
+                fontSize: '11px',
+                color: '#7f8c8d',
+              }}
+            >
+              Covoiturage
+            </p>
           </div>
         </div>
 
         <button
           type="button"
-          onClick={() => router.push('/')}
-          style={{ background: 'none', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', color: '#475569', cursor: 'pointer', fontWeight: '500' }}
+          onClick={() =>
+            router.push(
+              '/covoiturage'
+            )
+          }
+          style={{
+            background: 'none',
+            border:
+              '1px solid #cbd5e1',
+            padding: '7px 12px',
+            borderRadius: '6px',
+            fontSize: '13px',
+            color: '#475569',
+            cursor: 'pointer',
+            fontWeight: '500',
+          }}
         >
-          ← Retour à l'accueil
+          ← Retour
         </button>
       </header>
 
-      <main style={{ maxWidth: '700px', margin: '30px auto', padding: '0 20px' }}>
-        <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '30px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e1e4e8' }}>
-          <h2 style={{ marginTop: 0, fontSize: '20px', color: '#2c3e50', marginBottom: '20px' }}>
-            🚗 Proposer ou demander un trajet
+      <main
+        style={{
+          maxWidth: '720px',
+          margin: '30px auto',
+          padding: '0 20px',
+        }}
+      >
+        <div
+          style={{
+            backgroundColor:
+              '#ffffff',
+            borderRadius: '12px',
+            padding: '30px',
+            boxShadow:
+              '0 2px 8px rgba(0,0,0,0.05)',
+            border:
+              '1px solid #e1e4e8',
+          }}
+        >
+          <h2
+            style={{
+              margin:
+                '0 0 6px',
+              fontSize: '22px',
+              color: '#2c3e50',
+            }}
+          >
+            🚗 Covoiturage
           </h2>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            
-            {/* Type d'annonce covoiturage */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ fontWeight: '600', fontSize: '14px', color: '#334155' }}>Je suis :</label>
-              <div style={{ display: 'flex', gap: '15px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
-                  <input
-                    type="radio"
-                    name="typeTrajet"
-                    value="conducteur"
-                    checked={typeTrajet === 'conducteur'}
-                    onChange={() => setTypeTrajet('conducteur')}
-                  />
-                  Conducteur (je propose des places)
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
-                  <input
-                    type="radio"
-                    name="typeTrajet"
-                    value="passager"
-                    checked={typeTrajet === 'passager'}
-                    onChange={() => setTypeTrajet('passager')}
-                  />
-                  Passager (je cherche un trajet)
-                </label>
+          <p
+            style={{
+              margin:
+                '0 0 25px',
+              color: '#64748b',
+              fontSize: '14px',
+            }}
+          >
+            Proposez une place dans votre véhicule ou recherchez quelqu'un pour vous transporter.
+          </p>
+
+          <form
+            onSubmit={
+              handleSubmit
+            }
+            style={{
+              display: 'flex',
+              flexDirection:
+                'column',
+              gap: '22px',
+            }}
+          >
+            {/* CHOIX PRINCIPAL */}
+
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  fontWeight: '700',
+                  fontSize: '15px',
+                  color: '#334155',
+                  marginBottom: '10px',
+                }}
+              >
+                Que souhaitez-vous publier ?
+              </label>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns:
+                    '1fr 1fr',
+                  gap: '12px',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleTypeChange(
+                      'conducteur'
+                    )
+                  }
+                  style={{
+                    padding: '18px',
+                    textAlign: 'left',
+                    borderRadius:
+                      '10px',
+                    border:
+                      isConducteur
+                        ? '2px solid #356f63'
+                        : '1px solid #cbd5e1',
+                    backgroundColor:
+                      isConducteur
+                        ? '#edf4f1'
+                        : '#ffffff',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '25px',
+                      marginBottom:
+                        '6px',
+                    }}
+                  >
+                    🚗
+                  </div>
+
+                  <div
+                    style={{
+                      fontWeight:
+                        '700',
+                      color:
+                        '#24313f',
+                      marginBottom:
+                        '4px',
+                    }}
+                  >
+                    Je propose un trajet
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize:
+                        '12px',
+                      color:
+                        '#64748b',
+                      lineHeight:
+                        '1.4',
+                    }}
+                  >
+                    J'ai une voiture et des places disponibles.
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleTypeChange(
+                      'passager'
+                    )
+                  }
+                  style={{
+                    padding: '18px',
+                    textAlign: 'left',
+                    borderRadius:
+                      '10px',
+                    border:
+                      !isConducteur
+                        ? '2px solid #356f63'
+                        : '1px solid #cbd5e1',
+                    backgroundColor:
+                      !isConducteur
+                        ? '#edf4f1'
+                        : '#ffffff',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '25px',
+                      marginBottom:
+                        '6px',
+                    }}
+                  >
+                    🔎
+                  </div>
+
+                  <div
+                    style={{
+                      fontWeight:
+                        '700',
+                      color:
+                        '#24313f',
+                      marginBottom:
+                        '4px',
+                    }}
+                  >
+                    Je recherche un trajet
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize:
+                        '12px',
+                      color:
+                        '#64748b',
+                      lineHeight:
+                        '1.4',
+                    }}
+                  >
+                    Je cherche quelqu'un pouvant me transporter.
+                  </div>
+                </button>
               </div>
             </div>
 
-            {/* Départ & Arrivée en champs libres */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontWeight: '600', fontSize: '14px', color: '#334155' }}>Lieu de départ</label>
+            {/* MESSAGE TYPE */}
+
+            <div
+              style={{
+                backgroundColor:
+                  isConducteur
+                    ? '#f0fdf4'
+                    : '#eff6ff',
+                border:
+                  isConducteur
+                    ? '1px solid #bbf7d0'
+                    : '1px solid #bfdbfe',
+                color:
+                  isConducteur
+                    ? '#166534'
+                    : '#1e40af',
+                padding:
+                  '11px 13px',
+                borderRadius:
+                  '8px',
+                fontSize:
+                  '13px',
+              }}
+            >
+              {isConducteur
+                ? '🚗 Vous publiez une proposition de covoiturage.'
+                : '🔎 Vous publiez une recherche de covoiturage.'}
+            </div>
+
+            {/* DÉPART / ARRIVÉE */}
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns:
+                  '1fr 1fr',
+                gap: '15px',
+              }}
+            >
+              <div>
+                <label
+                  style={
+                    labelStyle
+                  }
+                >
+                  Lieu de départ
+                </label>
+
                 <input
                   type="text"
-                  placeholder="Ex: Embarcadère, Saint-Pierre, Place du Général de Gaulle..."
+                  placeholder="Ex : Fortune, Saint-Pierre..."
                   value={depart}
-                  onChange={(e) => setDepart(e.target.value)}
+                  onChange={(e) =>
+                    setDepart(
+                      e.target.value
+                    )
+                  }
                   required
-                  style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', backgroundColor: '#fff', boxSizing: 'border-box' }}
+                  style={
+                    inputStyle
+                  }
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontWeight: '600', fontSize: '14px', color: '#334155' }}>Lieu d'arrivée</label>
+              <div>
+                <label
+                  style={
+                    labelStyle
+                  }
+                >
+                  Destination
+                </label>
+
                 <input
                   type="text"
-                  placeholder="Ex: Miquelon bourg, Langlade, Aéroport..."
+                  placeholder="Ex : Saint John's, Miquelon..."
                   value={arrivee}
-                  onChange={(e) => setArrivee(e.target.value)}
+                  onChange={(e) =>
+                    setArrivee(
+                      e.target.value
+                    )
+                  }
                   required
-                  style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', backgroundColor: '#fff', boxSizing: 'border-box' }}
+                  style={
+                    inputStyle
+                  }
                 />
               </div>
             </div>
 
-            {/* Date & Heure */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontWeight: '600', fontSize: '14px', color: '#334155' }}>Date du trajet</label>
+            {/* DATE HEURE */}
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns:
+                  '1fr 1fr',
+                gap: '15px',
+              }}
+            >
+              <div>
+                <label
+                  style={
+                    labelStyle
+                  }
+                >
+                  {isConducteur
+                    ? 'Date du trajet'
+                    : 'Date recherchée'}
+                </label>
+
                 <input
                   type="date"
-                  value={dateTrajet}
-                  onChange={(e) => setDateTrajet(e.target.value)}
+                  value={
+                    dateTrajet
+                  }
+                  onChange={(e) =>
+                    setDateTrajet(
+                      e.target.value
+                    )
+                  }
                   required
-                  style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }}
+                  style={
+                    inputStyle
+                  }
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontWeight: '600', fontSize: '14px', color: '#334155' }}>Heure de départ (indicative)</label>
+              <div>
+                <label
+                  style={
+                    labelStyle
+                  }
+                >
+                  {isConducteur
+                    ? 'Heure de départ'
+                    : 'Heure souhaitée (facultative)'}
+                </label>
+
                 <input
                   type="time"
-                  value={heureTrajet}
-                  onChange={(e) => setHeureTrajet(e.target.value)}
-                  style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }}
+                  value={
+                    heureTrajet
+                  }
+                  onChange={(e) =>
+                    setHeureTrajet(
+                      e.target.value
+                    )
+                  }
+                  style={
+                    inputStyle
+                  }
                 />
               </div>
             </div>
 
-            {/* Places & Participation */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontWeight: '600', fontSize: '14px', color: '#334155' }}>Nombre de places</label>
+            {/* PERSONNES / PRIX */}
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns:
+                  '1fr 1fr',
+                gap: '15px',
+              }}
+            >
+              <div>
+                <label
+                  style={
+                    labelStyle
+                  }
+                >
+                  {isConducteur
+                    ? 'Nombre de places disponibles'
+                    : 'Nombre de personnes à transporter'}
+                </label>
+
                 <input
                   type="number"
                   min="1"
                   max="8"
                   value={places}
-                  onChange={(e) => setPlaces(e.target.value)}
+                  onChange={(e) =>
+                    setPlaces(
+                      e.target.value
+                    )
+                  }
                   required
-                  style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }}
+                  style={
+                    inputStyle
+                  }
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontWeight: '600', fontSize: '14px', color: '#334155' }}>Participation (€ par place, 0 = gratuit)</label>
+              <div>
+                <label
+                  style={
+                    labelStyle
+                  }
+                >
+                  {isConducteur
+                    ? 'Participation par place (€)'
+                    : 'Participation possible (€)'}
+                </label>
+
                 <input
                   type="number"
                   min="0"
+                  step="0.01"
                   value={prix}
-                  onChange={(e) => setPrix(e.target.value)}
-                  style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }}
+                  onChange={(e) =>
+                    setPrix(
+                      e.target.value
+                    )
+                  }
+                  style={
+                    inputStyle
+                  }
                 />
+
+                <div
+                  style={{
+                    marginTop:
+                      '5px',
+                    color:
+                      '#94a3b8',
+                    fontSize:
+                      '11px',
+                  }}
+                >
+                  0 € = gratuit
+                </div>
               </div>
             </div>
 
-            {/* Téléphone */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ fontWeight: '600', fontSize: '14px', color: '#334155' }}>Téléphone de contact (optionnel)</label>
+            {/* CONTACT */}
+
+            <div>
+              <label
+                style={
+                  labelStyle
+                }
+              >
+                Contact
+              </label>
+
               <input
-                type="tel"
-                placeholder="Ex: 55 12 34"
-                value={contactTel}
-                onChange={(e) => setContactTel(e.target.value)}
-                style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }}
+                type="text"
+                placeholder="Téléphone ou autre moyen de contact"
+                value={contact}
+                onChange={(e) =>
+                  setContact(
+                    e.target.value
+                  )
+                }
+                required
+                style={
+                  inputStyle
+                }
               />
             </div>
 
-            {/* Précisions */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ fontWeight: '600', fontSize: '14px', color: '#334155' }}>Précisions / Lieu de rendez-vous</label>
+            {/* DESCRIPTION */}
+
+            <div>
+              <label
+                style={
+                  labelStyle
+                }
+              >
+                {isConducteur
+                  ? 'Précisions sur le trajet'
+                  : 'Précisions sur votre recherche'}
+              </label>
+
               <textarea
-                placeholder="Précisez le point de rencontre, bagages acceptés, etc."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-                style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', resize: 'vertical' }}
+                placeholder={
+                  isConducteur
+                    ? 'Point de rendez-vous, bagages possibles, détour éventuel...'
+                    : 'Expliquez votre besoin : flexibilité sur l’heure, enfants, bagages, destination précise...'
+                }
+                value={
+                  description
+                }
+                onChange={(e) =>
+                  setDescription(
+                    e.target.value
+                  )
+                }
+                rows={5}
+                style={{
+                  ...inputStyle,
+                  resize:
+                    'vertical',
+                }}
               />
             </div>
+
+            {/* SUBMIT */}
 
             <button
               type="submit"
-              disabled={loading}
-              style={{ backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '12px', borderRadius: '6px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer', marginTop: '10px', opacity: loading ? 0.7 : 1 }}
+              disabled={
+                loading
+              }
+              style={{
+                backgroundColor:
+                  '#27ae60',
+                color:
+                  'white',
+                border: 'none',
+                padding:
+                  '13px',
+                borderRadius:
+                  '7px',
+                fontSize:
+                  '15px',
+                fontWeight:
+                  'bold',
+                cursor:
+                  loading
+                    ? 'wait'
+                    : 'pointer',
+                marginTop:
+                  '4px',
+                opacity:
+                  loading
+                    ? 0.7
+                    : 1,
+              }}
             >
-              {loading ? 'Publication en cours...' : 'Publier le covoiturage'}
+              {loading
+                ? 'Publication en cours...'
+                : isConducteur
+                  ? '🚗 Publier mon trajet'
+                  : '🔎 Publier ma recherche'}
             </button>
-
           </form>
         </div>
       </main>
-
     </div>
   )
+}
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  fontWeight: '600',
+  fontSize: '14px',
+  color: '#334155',
+  marginBottom: '7px',
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px 11px',
+  borderRadius: '6px',
+  border: '1px solid #cbd5e1',
+  fontSize: '14px',
+  outline: 'none',
+  backgroundColor: '#ffffff',
+  boxSizing: 'border-box',
 }
