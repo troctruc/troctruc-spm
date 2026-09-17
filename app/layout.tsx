@@ -10,13 +10,12 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL('https://troctruc-spm.com'),
 
-  alternates: {
-    canonical: '/',
-  },
-
   title: {
-    default: 'Petites annonces à Saint-Pierre-et-Miquelon | TrocTruc SPM',
-    template: '%s | TrocTruc SPM',
+    default:
+      'Petites annonces à Saint-Pierre-et-Miquelon | TrocTruc SPM',
+
+    template:
+      '%s | TrocTruc SPM',
   },
 
   description:
@@ -37,28 +36,107 @@ export const metadata: Metadata = {
     'Langlade',
   ],
 
-  manifest: '/manifest.json',
+  applicationName:
+    'TrocTruc SPM',
+
+  authors: [
+    {
+      name:
+        'TrocTruc SPM',
+    },
+  ],
+
+  creator:
+    'TrocTruc SPM',
+
+  publisher:
+    'TrocTruc SPM',
+
+  manifest:
+    '/manifest.json',
 
   openGraph: {
-    title: 'Petites annonces à Saint-Pierre-et-Miquelon | TrocTruc SPM',
+    title:
+      'Petites annonces à Saint-Pierre-et-Miquelon | TrocTruc SPM',
+
     description:
       "Achetez, vendez, donnez et échangez à Saint-Pierre-et-Miquelon. Petites annonces locales, véhicules, maison, services, immobilier et covoiturage à Saint-Pierre, Miquelon et Langlade.",
-    url: 'https://troctruc-spm.com',
-    siteName: 'TrocTruc SPM',
-    locale: 'fr_FR',
-    type: 'website',
+
+    url:
+      'https://troctruc-spm.com',
+
+    siteName:
+      'TrocTruc SPM',
+
+    locale:
+      'fr_FR',
+
+    type:
+      'website',
+
+    images: [
+      {
+        url:
+          '/puffin-logo.jpeg',
+
+        width:
+          1200,
+
+        height:
+          630,
+
+        alt:
+          'TrocTruc SPM - Petites annonces à Saint-Pierre-et-Miquelon',
+      },
+    ],
+  },
+
+  twitter: {
+    card:
+      'summary_large_image',
+
+    title:
+      'Petites annonces à Saint-Pierre-et-Miquelon | TrocTruc SPM',
+
+    description:
+      "Achetez, vendez, donnez et échangez localement à Saint-Pierre-et-Miquelon.",
+
+    images: [
+      '/puffin-logo.jpeg',
+    ],
   },
 
   robots: {
-    index: true,
-    follow: true,
+    index:
+      true,
+
+    follow:
+      true,
+
+    googleBot: {
+      index:
+        true,
+
+      follow:
+        true,
+
+      'max-image-preview':
+        'large',
+
+      'max-snippet':
+        -1,
+
+      'max-video-preview':
+        -1,
+    },
   },
 }
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children:
+    React.ReactNode
 }) {
   return (
     <html lang="fr">
