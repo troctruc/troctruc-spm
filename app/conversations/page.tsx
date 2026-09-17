@@ -217,7 +217,7 @@ export default function ConversationsPage() {
               } = await supabase
                 .from('messages')
                 .select(
-                  'sender_id, created_at, content, read_at'
+                  'sender_id, created_at, content, read_at, attachment_path'
                 )
                 .eq(
                   'conversation_id',
@@ -308,6 +308,11 @@ export default function ConversationsPage() {
                 lastMessageSenderId:
                   lastMessageData
                     ?.sender_id ||
+                  null,
+
+                lastMessageAttachment:
+                  lastMessageData
+                    ?.attachment_path ||
                   null
               }
             }
@@ -989,10 +994,17 @@ export default function ConversationsPage() {
                             ? 'Vous : '
                             : ''
                         }${conv.lastMessage}`
-                      : `Avec ${
-                          otherUser.pseudo ||
-                          'Membre TrocTruc'
-                        }`
+                      : conv.lastMessageAttachment
+                        ? `${
+                            conv.lastMessageSenderId ===
+                            currentUser.id
+                              ? 'Vous : '
+                              : ''
+                          }📷 Photo`
+                        : `Avec ${
+                            otherUser.pseudo ||
+                            'Membre TrocTruc'
+                          }`
 
                   return (
                     <li
