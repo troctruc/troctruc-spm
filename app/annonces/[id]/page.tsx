@@ -8,6 +8,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+const BASE_URL = 'https://troctruc-spm.com'
+
 type PageProps = {
   params: Promise<{
     id: string
@@ -28,49 +30,143 @@ async function getAnnonce(id: string) {
   return data
 }
 
-export async function generateMetadata({
-  params,
-}: PageProps): Promise<Metadata> {
-  const { id } = await params
-  const annonce = await getAnnonce(id)
+/*
+ * Vérifie si l'annonce est réellement publiée.
+ */
+function isAnnoncePublished(annonce: any) {
+  const status = String(
+    annonce.status || ''
+  )
+    .trim()
+    .toLowerCase()
 
-  if (!annonce) {
-    return {
-      title: 'Annonce introuvable',
-      robots: {
-        index: false,
-        follow: false,
-      },
-    }
-  }
+  return (
+    annonce.validated === true ||
+    status === 'validé' ||
+    status === 'valide' ||
+    status === 'validée' ||
+    status === 'validee' ||
+    status === 'publié' ||
+    status === 'publie' ||
+    status === 'publiée' ||
+    status === 'publiee'
+  )
+}
 
-  const title =
-    annonce.titre ||
-    annonce.title ||
-    'Petite annonce'
+/*
+ * Extrait les informations que TrocTruc stocke
+ * dans la première ligne de description :
+ *
+ * Type : VENTE | Localisation : Saint-Pierre
+ *
+ * ou :
+ *
+ * Type : VENTE | Localisation : Saint-Pierre
+ * | Sous-catégorie : Vêtements
+ */
+function parseDescription(rawDescription: string) {
+  const parts =
+    rawDescription.split('\n\n')
 
-  const lieu =
-    annonce.lieu ||
-    annonce.location ||
-    annonce.ville ||
+  const firstLine =
+    parts[0]?.trim() || ''
+
+  let localisation =
     'Saint-Pierre-et-Miquelon'
 
-  const prix =
-    annonce.prix !== undefined && annonce.prix !== null
-      ? `${annonce.prix} €`
-      : ''
+  let typeAnnonce = ''
 
-  const rawDescription =
-    annonce.description ||
-    `Découvrez cette annonce disponible à ${lieu} sur TrocTruc SPM.`
+  let sousCategorie = ''
 
-  const description = rawDescription
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 155)
+  let cleanDescription =
+    rawDescription
 
-  let imageUrl: string | undefined
+  if (
+    firstLine.startsWith('Type :')
+  ) {
+    const metadataParts =
+      firstLine
+        .split('|')
+        .map((part) =>
+          part.trim()
+        )
 
+    const typePart =
+      metadataParts.find(
+        (part) =>
+          part.startsWith(
+            'Type :'
+          )
+      )
+
+    const localisationPart =
+      metadataParts.find(
+        (part) =>
+          part.startsWith(
+            'Localisation :'
+          )
+      )
+
+    const sousCategoriePart =
+      metadataParts.find(
+        (part) =>
+          part.startsWith(
+            'Sous-catégorie :'
+          )
+      )
+
+    if (typePart) {
+      typeAnnonce =
+        typePart
+          .replace(
+            'Type :',
+            ''
+          )
+          .trim()
+    }
+
+    if (localisationPart) {
+      localisation =
+        localisationPart
+          .replace(
+            'Localisation :',
+            ''
+          )
+          .trim()
+    }
+
+    if (sousCategoriePart) {
+      sousCategorie =
+        sousCategoriePart
+          .replace(
+            'Sous-catégorie :',
+            ''
+          )
+          .trim()
+    }
+
+    cleanDescription =
+      parts
+        .slice(1)
+        .join('\n\n')
+        .trim()
+  }
+
+  return {
+    localisation,
+    typeAnnonce,
+    sousCategorie,
+    cleanDescription,
+  }
+}
+
+/*
+ * Récupère une image utilisable par Google,
+ * Facebook, WhatsApp, etc.
+ */
+function getAnnonceImage(
+  annonce: any
+) {
   const rawImages =
     annonce.photos ||
     annonce.image_url ||
@@ -79,76 +175,315 @@ export async function generateMetadata({
     annonce.photo ||
     []
 
-  let firstImage: string | undefined
+  let firstImage:
+    | string
+    | undefined
 
-  if (Array.isArray(rawImages)) {
-    firstImage = rawImages[0]
-  } else if (typeof rawImages === 'string') {
-    firstImage = rawImages
-      .split(',')
-      .map((item: string) => item.trim())
-      .filter(Boolean)[0]
+  if (
+    Array.isArray(rawImages)
+  ) {
+    firstImage =
+      rawImages[0]
+  } else if (
+    typeof rawImages ===
+    'string'
+  ) {
+    firstImage =
+      rawImages
+        .split(',')
+        .map((item) =>
+          item.trim()
+        )
+        .filter(Boolean)[0]
   }
 
-  if (firstImage) {
-    if (firstImage.startsWith('http')) {
-      imageUrl = firstImage
-    } else {
-      const { data } = supabase.storage
-        .from('annonces-images')
-        .getPublicUrl(firstImage)
+  /*
+   * URL web normale :
+   * parfaite pour Open Graph.
+   */
+  if (
+    firstImage?.startsWith(
+      'http://'
+    ) ||
+    firstImage?.startsWith(
+      'https://'
+    )
+  ) {
+    return firstImage
+  }
 
-      imageUrl = data.publicUrl
+  /*
+   * Les images base64 fonctionnent dans
+   * l'interface mais ne conviennent pas
+   * pour une meta Open Graph.
+   */
+  if (
+    firstImage?.startsWith(
+      'data:image/'
+    )
+  ) {
+    return `${BASE_URL}/puffin-logo.jpeg`
+  }
+
+  /*
+   * Si une ancienne annonce contient
+   * un chemin Supabase Storage.
+   */
+  if (firstImage) {
+    const { data } =
+      supabase.storage
+        .from(
+          'annonces-images'
+        )
+        .getPublicUrl(
+          firstImage
+        )
+
+    if (
+      data?.publicUrl
+    ) {
+      return data.publicUrl
     }
   }
 
-  const seoTitle = prix
-    ? `${title} – ${prix} à ${lieu}`
-    : `${title} à ${lieu}`
+  return `${BASE_URL}/puffin-logo.jpeg`
+}
+
+/*
+ * METADONNÉES GOOGLE / RÉSEAUX SOCIAUX
+ */
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { id } =
+    await params
+
+  const annonce =
+    await getAnnonce(id)
+
+  if (!annonce) {
+    return {
+      title:
+        'Annonce introuvable',
+
+      robots: {
+        index:
+          false,
+
+        follow:
+          false,
+      },
+    }
+  }
+
+  const published =
+    isAnnoncePublished(
+      annonce
+    )
+
+  const title =
+    annonce.titre ||
+    annonce.title ||
+    'Petite annonce'
+
+  const {
+    localisation,
+    sousCategorie,
+    cleanDescription,
+  } =
+    parseDescription(
+      annonce.description ||
+        ''
+    )
+
+  const prix =
+    annonce.prix !==
+      undefined &&
+    annonce.prix !==
+      null &&
+    Number(annonce.prix) >
+      0
+      ? `${annonce.prix} €`
+      : ''
+
+  /*
+   * Exemple :
+   *
+   * Canapé vintage – 80 € à Saint-Pierre
+   *
+   * Le layout ajoutera ensuite :
+   * | TrocTruc SPM
+   */
+  const seoTitle =
+    prix
+      ? `${title} – ${prix} à ${localisation}`
+      : `${title} à ${localisation}`
+
+  /*
+   * Description propre, sans la ligne :
+   * Type : ... | Localisation : ...
+   */
+  let description =
+    cleanDescription
+      .replace(
+        /\s+/g,
+        ' '
+      )
+      .trim()
+
+  if (!description) {
+    description =
+      `Découvrez ${title} disponible à ${localisation} sur TrocTruc SPM, le site de petites annonces de Saint-Pierre-et-Miquelon.`
+  }
+
+  /*
+   * On peut ajouter un peu de contexte
+   * local si la description est très courte.
+   */
+  if (
+    description.length <
+    90
+  ) {
+    description =
+      `${description} Retrouvez cette annonce ${
+        sousCategorie
+          ? `dans la catégorie ${sousCategorie} `
+          : ''
+      }à ${localisation} sur TrocTruc SPM.`
+  }
+
+  description =
+    description
+      .replace(
+        /\s+/g,
+        ' '
+      )
+      .trim()
+      .slice(
+        0,
+        158
+      )
+
+  const imageUrl =
+    getAnnonceImage(
+      annonce
+    )
+
+  const annonceUrl =
+    `${BASE_URL}/annonces/${id}`
 
   return {
-    title: seoTitle,
+    title:
+      seoTitle,
+
     description,
 
     alternates: {
-      canonical: `/annonces/${id}`,
+      canonical:
+        annonceUrl,
     },
 
+    /*
+     * Une annonce en attente ou refusée
+     * peut rester accessible via son URL,
+     * mais Google ne doit pas l'indexer.
+     */
+    robots: published
+      ? {
+          index:
+            true,
+
+          follow:
+            true,
+
+          googleBot: {
+            index:
+              true,
+
+            follow:
+              true,
+
+            'max-image-preview':
+              'large',
+
+            'max-snippet':
+              -1,
+          },
+        }
+      : {
+          index:
+            false,
+
+          follow:
+            false,
+        },
+
     openGraph: {
-      title: seoTitle,
+      title:
+        seoTitle,
+
       description,
-      url: `https://troctruc-spm.com/annonces/${id}`,
-      siteName: 'TrocTruc SPM',
-      locale: 'fr_FR',
-      type: 'website',
-      images: imageUrl
-        ? [
-            {
-              url: imageUrl,
-              alt: title,
-            },
-          ]
-        : undefined,
+
+      url:
+        annonceUrl,
+
+      siteName:
+        'TrocTruc SPM',
+
+      locale:
+        'fr_FR',
+
+      type:
+        'website',
+
+      images: [
+        {
+          url:
+            imageUrl,
+
+          alt:
+            `${title} à ${localisation}`,
+        },
+      ],
     },
 
     twitter: {
-      card: imageUrl ? 'summary_large_image' : 'summary',
-      title: seoTitle,
+      card:
+        'summary_large_image',
+
+      title:
+        seoTitle,
+
       description,
-      images: imageUrl ? [imageUrl] : undefined,
+
+      images: [
+        imageUrl,
+      ],
     },
   }
 }
 
+/*
+ * PAGE DE L'ANNONCE
+ */
 export default async function AnnoncePage({
   params,
 }: PageProps) {
-  const { id } = await params
-  const annonce = await getAnnonce(id)
+  const { id } =
+    await params
+
+  const annonce =
+    await getAnnonce(id)
 
   if (!annonce) {
     notFound()
   }
 
-  return <AnnonceDetailClient initialAnnonce={annonce} />
+  return (
+    <AnnonceDetailClient
+      initialAnnonce={
+        annonce
+      }
+    />
+  )
 }
